@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Text</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Storyteller';
+            src: url('path/to/Storyteller-Regular.woff2') format('woff2'),
+                 url('path/to/Storyteller-Regular.woff') format('woff');
+            /* Storytellerフォントのパスを正確に指定してください */
+            /* 必要であれば他の形式 (e.g., .ttf) も追加 */
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #E81F27; /* 背景色を#E81F27に変更 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Oswald', sans-serif; /* 文章のフォントをOswaldに設定 */
+            font-weight: 500; /* Oswald Mediumに相当 */
+            font-size: 20px; /* フォントサイズを20pxに設定 */
+            color: #000000; /* 文字色を黒に設定 */
+        }
+
+        .container {
+            position: relative;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .text-wrapper {
+            position: absolute;
+            width: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        .falling-char {
+            display: inline-block;
+            opacity: 1;
+            transform: translateY(0);
+            animation: fall 2s forwards; /* アニメーション時間を調整 */
+            animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            /* 個々の文字のフォントやサイズは親から継承 */
+        }
+
+        /* 各文字の落下開始時間をずらすための遅延設定 */
+        .falling-char:nth-child(1) { animation-delay: 0.1s; }
+        .falling-char:nth-child(2) { animation-delay: 0.2s; }
+        .falling-char:nth-child(3) { animation-delay: 0.3s; }
+        .falling-char:nth-child(4) { animation-delay: 0.4s; }
+        .falling-char:nth-child(5) { animation-delay: 0.5s; }
+        .falling-char:nth-child(6) { animation-delay: 0.6s; }
+        .falling-char:nth-child(7) { animation-delay: 0.7s; }
+        .falling-char:nth-child(8) { animation-delay: 0.8s; }
+        .falling-char:nth-child(9) { animation-delay: 0.9s; }
+        .falling-char:nth-child(10) { animation-delay: 1.0s; }
+        /* 必要に応じてさらに追加 */
+
+        @keyframes fall {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(200px); /* 落下距離を調整 */
+            }
+        }
+
+        .remaining-text-container {
+            position: absolute;
+            width: 100%;
+            bottom: 20%; /* 画面下部からの位置を調整 */
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            font-family: 'Storyteller', cursive; /* Storytellerフォントを適用 */
+            font-size: 80px; /* 残る文字のサイズを調整 */
+            color: #000000; /* 残る文字の色も黒 */
+            white-space: nowrap;
+        }
+
+        .remaining-char {
+            display: inline-block;
+            opacity: 0; /* 最初は非表示 */
+            transition: opacity 0.5s ease-in-out; /* フェードインのアニメーション */
+            /* Storytellerのアルファベット一つ一つが独立して残るため、特別なアニメーションは不要 */
+        }
+
+        .remaining-text-container.show .remaining-char {
+            opacity: 1; /* アニメーション後に表示 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-wrapper" id="animatedText">
+            </div>
+        <div class="remaining-text-container" id="remainingText">
+            </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const animatedTextElement = document.getElementById('animatedText');
+            const remainingTextContainer = document.getElementById('remainingText');
+
+            const initialText = "待っていてね"; // 崩れ落ちる文章
+            const remainingText = "Storyteller"; // 最後に残る文字
+
+            // 崩れ落ちる文字を動的に生成
+            initialText.split('').forEach((char, index) => {
+                const span = document.createElement('span');
+                span.classList.add('falling-char');
+                span.textContent = char;
+                // 遅延時間を計算してスタイルに適用
+                span.style.animationDelay = `${0.1 * index}s`;
+                animatedTextElement.appendChild(span);
+            });
+
+            // 残る文字を動的に生成
+            remainingText.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.classList.add('remaining-char');
+                span.textContent = char;
+                remainingTextContainer.appendChild(span);
+            });
+
+            // 崩れるアニメーションの完了を待ってから残る文字を表示
+            // 最も遅い文字のアニメーション時間 + 遅延時間 + フェードイン時間
+            const longestAnimationDelay = (initialText.length - 1) * 0.1;
+            const animationDuration = 2; // fallアニメーションのduration
+            const fadeInDuration = 0.5; // remaining-charのtransition時間
+
+            setTimeout(() => {
+                remainingTextContainer.classList.add('show');
+            }, (longestAnimationDelay + animationDuration) * 1000); // ミリ秒に変換
+        });
+    </script>
+</body>
+</html>
