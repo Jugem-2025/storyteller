@@ -33,30 +33,31 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            display: flex; /* 中央配置のためにflexを使用 */
-            justify-content: center;
-            align-items: center;
+            /* display: flex; はbodyで設定済みなので不要 */
+            /* justify-content: center; align-items: center; もbodyで設定済み */
             padding: 20px;
             box-sizing: border-box;
+            overflow: hidden; /* 子要素のはみ出しを隠す */
         }
 
         .text-wrapper {
-            position: absolute; /* 以前のabsoluteに戻し、中央に配置 */
-            width: 80vw; /* 広めの幅を維持 */
+            position: absolute; /* 画面中央に配置 */
+            width: 80vw;
             max-width: 1200px;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             display: flex;
             flex-wrap: wrap;
-            justify-content: center; /* 中央揃えに戻す */
+            justify-content: center; /* 中央揃え */
             white-space: pre-wrap;
-            line-height: 1.5; /* 行の高さを元に戻す */
+            line-height: 1.5;
             text-align: center; /* 中央揃え */
-            font-size: 10px; /* フォントサイズを維持 */
+            font-size: 10px;
             opacity: 0; /* 最初は非表示 */
             animation: fadeInText 0.5s forwards;
             animation-delay: 0.5s;
+            pointer-events: none; /* マウスイベントを受け付けない */
         }
 
         .falling-char {
@@ -66,7 +67,7 @@
             animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 最初のカーブに戻す */
             position: relative; /* z-indexのためにrelativeに */
             z-index: 2; /* 崩れる文字が手前になるように */
-            pointer-events: none; /* アニメーション中にマウスイベントを受け付けない */
+            will-change: transform, opacity; /* アニメーションのパフォーマンス最適化 */
         }
 
         @keyframes fadeInText {
@@ -77,11 +78,12 @@
         @keyframes fall-from-center { /* 中央から広がるアニメーション */
             0% {
                 opacity: 1;
-                transform: translateY(0) rotate(0deg);
+                transform: translate(0, 0) rotate(0deg); /* 最初の位置 */
             }
             100% {
                 opacity: 0;
-                transform: translateY(calc(50vh + var(--randY))) translateX(calc(var(--randX))) rotate(var(--randRot)); /* 画面外へランダムに落下・回転 */
+                /* ランダムな方向へ画面外に落下 */
+                transform: translate(var(--randX, 0px), var(--randY, 0px)) rotate(var(--randRot, 0deg));
             }
         }
 
@@ -89,7 +91,7 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%); /* 中央に配置 */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -97,18 +99,19 @@
             font-size: 0; /* 初期サイズを0 */
             color: #000000;
             white-space: nowrap;
-            z-index: 1; /* 奥に配置 */
+            z-index: 3; /* 常に最前面に表示 */
             opacity: 0; /* 初期状態は完全に透明 */
-            pointer-events: none; /* アニメーション中はマウスイベントを受け付けない */
+            pointer-events: none; /* マウスイベントを受け付けない */
         }
 
         .remaining-char {
             display: inline-block;
-            opacity: 0;
-            /* initial position & scale for assemble animation */
-            transform: translate(var(--x, 0), var(--y, 0)) scale(0) rotate(var(--rot, 0deg));
-            position: absolute; /* 各文字を絶対配置にしてバラバラにする */
-            white-space: nowrap;
+            opacity: 1; /* 崩れる文字とは異なり、最初から不透明 */
+            transform: translate(0, 0) scale(1) rotate(0deg); /* 初期位置は崩れる文字と同じ */
+            position: relative; /* その場に残るためrelative */
+            font-size: 10px; /* 崩れる文字と同じ初期サイズ */
+            z-index: 4; /* remaining-text-containerよりさらに手前 */
+            will-change: transform, opacity, font-size;
         }
 
         /* アニメーション後の状態 */
@@ -123,8 +126,11 @@
 
         @keyframes assembleAndGrow {
             0% {
-                opacity: 0;
+                opacity: 0; /* バラバラに散らばる前の状態は透明 */
                 transform: translate(var(--x), var(--y)) scale(0) rotate(var(--rot)); /* バラバラの開始位置 */
+            }
+            1% {
+                opacity: 1; /* アニメーション開始直後に不透明に */
             }
             50% {
                 opacity: 1;
@@ -193,33 +199,30 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 span.classList.add('falling-char');
                 span.textContent = char;
                 // 各文字のランダムな落下位置と回転を設定
-                span.style.setProperty('--randX', `${(Math.random() - 0.5) * 500}px`); /* -250px から 250px */
-                span.style.setProperty('--randY', `${Math.random() * 500}px`); /* 0px から 500px */
-                span.style.setProperty('--randRot', `${Math.random() * 720 - 360}deg`); /* -360deg から 360deg */
+                // 中央からより大きく散らばるように調整
+                const randX = (Math.random() - 0.5) * window.innerWidth; // 画面幅全体に散らばる
+                const randY = (Math.random() - 0.5) * window.innerHeight; // 画面高全体に散らばる
+                const randRot = Math.random() * 1080 - 540; // より大きく回転
+                span.style.setProperty('--randX', `${randX}px`);
+                span.style.setProperty('--randY', `${randY}px`);
+                span.style.setProperty('--randRot', `${randRot}deg`);
                 animatedTextElement.appendChild(span);
             });
 
-            // 残る文字を動的に生成し、ランダムな初期位置を設定
-            remainingText.split('').forEach(char => {
+            // 残る文字を動的に生成し、当初は崩れる文字と同じ位置で表示
+            const remainingCharElements = [];
+            remainingText.split('').forEach((char, index) => {
                 const span = document.createElement('span');
                 span.classList.add('remaining-char');
                 span.textContent = char;
-
-                // ランダムな初期位置と回転を設定（中央からの相対位置）
-                const randomX = Math.random() * 400 - 200; // -200pxから200pxの範囲
-                const randomY = Math.random() * 400 - 200;
-                const randomRot = Math.random() * 360;
-
-                span.style.setProperty('--x', `${randomX}px`);
-                span.style.setProperty('--y', `${randomY}px`);
-                span.style.setProperty('--rot', `${randomRot}deg`);
-
+                // ここではまだランダムな位置を設定しない
                 remainingTextContainer.appendChild(span);
+                remainingCharElements.push(span);
             });
 
             // ページロードから3秒後にアニメーションを開始
             const startDelay = 3000; // 3秒 = 3000ミリ秒
-            const perCharFallDelay = 0.01; // 各文字の落下開始遅延
+            const perCharFallDelay = 0.005; // 各文字の落下開始遅延をさらに短縮し、より一斉に
             const fallAnimationDuration = 2; // falling-charのアニメーションduration
             const assembleAndGrowDuration = 1.5; // remaining-charのアニメーションduration
 
@@ -231,17 +234,28 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                     char.style.animationDelay = `${perCharFallDelay * index}s`;
                 });
 
-                // 崩れるアニメーションの完了を待ってから残る文字を表示＆アニメーション
-                const longestFallingAnimationEndTime = (initialText.length - 1) * perCharFallDelay * 1000 + fallAnimationDuration * 1000;
+                // 崩れるアニメーションの完了を待ってから残る文字のバラバラアニメーションを開始
+                const longestFallingAnimationEndTime = perCharFallDelay * (initialText.length - 1) * 1000 + fallAnimationDuration * 1000;
 
                 setTimeout(() => {
-                    remainingTextContainer.classList.add('show'); // コンテナ全体を不透明にする
-                    const remainingChars = document.querySelectorAll('.remaining-char');
-                    remainingChars.forEach((char, index) => {
-                        // 各文字にアニメーションを適用
+                    // remaining-charの初期位置をランダムに設定し、アニメーションを開始
+                    remainingCharElements.forEach((char, index) => {
+                        // ランダムな初期位置と回転を設定（中央からの相対位置）
+                        const randomX = (Math.random() - 0.5) * 600; // 散らばる範囲を調整
+                        const randomY = (Math.random() - 0.5) * 600;
+                        const randomRot = Math.random() * 720 - 360;
+
+                        char.style.setProperty('--x', `${randomX}px`);
+                        char.style.setProperty('--y', `${randomY}px`);
+                        char.style.setProperty('--rot', `${randomRot}deg`);
+                        char.style.opacity = '0'; // アニメーション開始前は非表示に
+                        char.style.transform = `translate(${randomX}px, ${randomY}px) scale(0) rotate(${randomRot}deg)`; // 初期状態も更新
+
+                        // 実際のassembleAndGrowアニメーションを適用
+                        char.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards ease-out`;
                         char.style.animationDelay = `${index * 0.1}s`; // 文字ごとに少し遅延
-                        char.style.fontSize = `80px`; // アニメーション終了時のフォントサイズを設定 (CSSのkeyframesで制御されるが、念のため)
                     });
+                    remainingTextContainer.classList.add('show'); // コンテナ全体を不透明にする
                 }, longestFallingAnimationEndTime); // 崩れるアニメーション終了と同時に次のアニメーション開始
             }, startDelay); // ここで3秒の遅延を設定
         });
