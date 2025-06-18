@@ -34,17 +34,21 @@
             position: relative;
             text-align: center;
             padding: 20px;
+            /* 長いテキストに対応するため、必要に応じてcontainerの最大幅を設定 */
+            max-width: 90vw; /* 例: ビューポートの幅の90% */
         }
 
         .text-wrapper {
-            position: absolute;
+            position: absolute; /* absoluteを維持し、transformで中央に配置 */
             width: 100%;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            display: flex;
-            justify-content: center;
-            white-space: nowrap;
+            display: flex; /* flexboxで文字を並べる */
+            flex-wrap: wrap; /* テキストが長すぎる場合に折り返す */
+            justify-content: center; /* 中央揃え */
+            white-space: pre-wrap; /* 改行コードを有効にする */
+            line-height: 1.5; /* 行の高さを調整 */
         }
 
         .falling-char {
@@ -56,19 +60,7 @@
             /* 個々の文字のフォントやサイズは親から継承 */
         }
 
-        /* 各文字の落下開始時間をずらすための遅延設定 */
-        .falling-char:nth-child(1) { animation-delay: 0.1s; }
-        .falling-char:nth-child(2) { animation-delay: 0.2s; }
-        .falling-char:nth-child(3) { animation-delay: 0.3s; }
-        .falling-char:nth-child(4) { animation-delay: 0.4s; }
-        .falling-char:nth-child(5) { animation-delay: 0.5s; }
-        .falling-char:nth-child(6) { animation-delay: 0.6s; }
-        .falling-char:nth-child(7) { animation-delay: 0.7s; }
-        .falling-char:nth-child(8) { animation-delay: 0.8s; }
-        .falling-char:nth-child(9) { animation-delay: 0.9s; }
-        .falling-char:nth-child(10) { animation-delay: 1.0s; }
-        /* 必要に応じてさらに追加 */
-
+        /* @keyframes fall はそのまま */
         @keyframes fall {
             0% {
                 opacity: 1;
@@ -119,7 +111,41 @@
             const animatedTextElement = document.getElementById('animatedText');
             const remainingTextContainer = document.getElementById('remainingText');
 
-            const initialText = "待っていてね"; // 崩れ落ちる文章
+            // 以前お送りいただいた長い文字列をここに設定
+            const initialText = `FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+GRAFFITI ARTIST FENG SHUI MASTER
+PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+ENGLISH TEACHER MATCHMAKER HOMELESS
+HOMELESS STREET SINGER / STORYTELLER MONK
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
+FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+GRAFFITI ARTIST FENG SHUI MASTER
+PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+ENGLISH TEACHER MATCHMAKER HOMELESS
+HOMELESS STREET SINGER / STORYTELLER MONK
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
+FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+GRAFFITI ARTIST FENG SHUI MASTER
+PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+ENGLISH TEACHER MATCHMAKER HOMELESS
+HOMELESS STREET SINGER / STORYTELLER MONK
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
+
             const remainingText = "Storyteller"; // 最後に残る文字
 
             // 崩れ落ちる文字を動的に生成
@@ -127,8 +153,10 @@
                 const span = document.createElement('span');
                 span.classList.add('falling-char');
                 span.textContent = char;
-                // 遅延時間を計算してスタイルに適用
-                span.style.animationDelay = `${0.1 * index}s`;
+                // 各文字の落下開始時間をずらす
+                // 長いテキストなので、アニメーションが非常に長くなる可能性があります。
+                // 必要に応じて、遅延時間の計算方法を調整してください。
+                span.style.animationDelay = `${0.02 * index}s`; // 遅延時間を短く調整
                 animatedTextElement.appendChild(span);
             });
 
@@ -142,7 +170,7 @@
 
             // 崩れるアニメーションの完了を待ってから残る文字を表示
             // 最も遅い文字のアニメーション時間 + 遅延時間 + フェードイン時間
-            const longestAnimationDelay = (initialText.length - 1) * 0.1;
+            const longestAnimationDelay = (initialText.length - 1) * 0.02; // 上記の遅延時間に合わせて調整
             const animationDuration = 2; // fallアニメーションのduration
             const fadeInDuration = 0.5; // remaining-charのtransition時間
 
