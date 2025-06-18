@@ -31,36 +31,42 @@
 
         .container {
             position: relative;
-            text-align: left; /* 左上から開始するためleftに変更 */
             width: 100vw;
             height: 100vh;
-            display: block; /* Flexboxではなくブロック要素として配置 */
-            padding: 20px; /* 余白を追加 */
-            box-sizing: border-box; /* paddingを含めて幅を計算 */
+            display: flex; /* 中央配置のためにflexを使用 */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         .text-wrapper {
-            position: relative; /* absoluteではなくrelativeに変更 */
-            width: 100%; /* 親要素の幅いっぱいに広がる */
-            height: auto; /* 高さはコンテンツに合わせる */
-            display: block; /* block要素として配置 */
-            white-space: pre-wrap; /* 改行コードを有効にする */
-            line-height: 1.2; /* 行の高さを調整 */
-            text-align: left; /* 左揃え */
-            overflow: hidden; /* 崩れる前はテキストを隠さない */
-            font-size: 10px; /* フォントサイズを半分に（20pxの半分） */
+            position: absolute; /* 以前のabsoluteに戻し、中央に配置 */
+            width: 80vw; /* 広めの幅を維持 */
+            max-width: 1200px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center; /* 中央揃えに戻す */
+            white-space: pre-wrap;
+            line-height: 1.5; /* 行の高さを元に戻す */
+            text-align: center; /* 中央揃え */
+            font-size: 10px; /* フォントサイズを維持 */
             opacity: 0; /* 最初は非表示 */
-            animation: fadeInText 0.5s forwards; /* フェードインアニメーションを追加 */
-            animation-delay: 0.5s; /* ページロード後少し遅れて表示開始 */
+            animation: fadeInText 0.5s forwards;
+            animation-delay: 0.5s;
         }
 
         .falling-char {
             display: inline-block;
             opacity: 1;
             transform: translateY(0) rotate(0deg);
-            animation-timing-function: ease-out;
-            position: relative;
-            z-index: 2;
+            animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 最初のカーブに戻す */
+            position: relative; /* z-indexのためにrelativeに */
+            z-index: 2; /* 崩れる文字が手前になるように */
+            pointer-events: none; /* アニメーション中にマウスイベントを受け付けない */
         }
 
         @keyframes fadeInText {
@@ -68,40 +74,41 @@
             to { opacity: 1; }
         }
 
-        @keyframes fall-from-top {
+        @keyframes fall-from-center { /* 中央から広がるアニメーション */
             0% {
                 opacity: 1;
                 transform: translateY(0) rotate(0deg);
             }
             100% {
                 opacity: 0;
-                transform: translateY(100vh) rotate(720deg); /* 画面下まで落下し、回転 */
+                transform: translateY(calc(50vh + var(--randY))) translateX(calc(var(--randX))) rotate(var(--randRot)); /* 画面外へランダムに落下・回転 */
             }
         }
 
         .remaining-text-container {
             position: absolute;
-            top: 50%; /* 画面中央に配置 */
+            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%); /* 中央揃え */
+            transform: translate(-50%, -50%);
             display: flex;
             justify-content: center;
-            align-items: center; /* 垂直方向も中央揃え */
+            align-items: center;
             font-family: 'Storyteller', cursive;
-            font-size: 0; /* 初期サイズを0にして後で拡大 */
+            font-size: 0; /* 初期サイズを0 */
             color: #000000;
             white-space: nowrap;
-            z-index: 1;
+            z-index: 1; /* 奥に配置 */
             opacity: 0; /* 初期状態は完全に透明 */
+            pointer-events: none; /* アニメーション中はマウスイベントを受け付けない */
         }
 
         .remaining-char {
             display: inline-block;
             opacity: 0;
-            transform: translate(var(--x, 0), var(--y, 0)) scale(0) rotate(var(--rot, 0deg)); /* 初期位置とサイズ、回転 */
-            transition: none; /* 初期はtransitionを無効化 */
+            /* initial position & scale for assemble animation */
+            transform: translate(var(--x, 0), var(--y, 0)) scale(0) rotate(var(--rot, 0deg));
             position: absolute; /* 各文字を絶対配置にしてバラバラにする */
-            white-space: nowrap; /* 文字列が途中で改行されないように */
+            white-space: nowrap;
         }
 
         /* アニメーション後の状態 */
@@ -110,8 +117,8 @@
         }
 
         .remaining-text-container.show .remaining-char {
-            animation: assembleAndGrow 1.5s forwards ease-out; /* アニメーション適用 */
-            /* アニメーション遅延はJSで設定 */
+            animation: assembleAndGrow 1.5s forwards ease-out;
+            /* animation-delay はJSで設定 */
         }
 
         @keyframes assembleAndGrow {
@@ -119,7 +126,7 @@
                 opacity: 0;
                 transform: translate(var(--x), var(--y)) scale(0) rotate(var(--rot)); /* バラバラの開始位置 */
             }
-            50% { /* 集まる過程で少し拡大 */
+            50% {
                 opacity: 1;
                 transform: translate(0, 0) scale(1.2) rotate(0deg); /* 中央に集まる */
             }
@@ -185,6 +192,10 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 const span = document.createElement('span');
                 span.classList.add('falling-char');
                 span.textContent = char;
+                // 各文字のランダムな落下位置と回転を設定
+                span.style.setProperty('--randX', `${(Math.random() - 0.5) * 500}px`); /* -250px から 250px */
+                span.style.setProperty('--randY', `${Math.random() * 500}px`); /* 0px から 500px */
+                span.style.setProperty('--randRot', `${Math.random() * 720 - 360}deg`); /* -360deg から 360deg */
                 animatedTextElement.appendChild(span);
             });
 
@@ -194,7 +205,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 span.classList.add('remaining-char');
                 span.textContent = char;
 
-                // ランダムな初期位置と回転を設定
+                // ランダムな初期位置と回転を設定（中央からの相対位置）
                 const randomX = Math.random() * 400 - 200; // -200pxから200pxの範囲
                 const randomY = Math.random() * 400 - 200;
                 const randomRot = Math.random() * 360;
@@ -208,20 +219,20 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
             // ページロードから3秒後にアニメーションを開始
             const startDelay = 3000; // 3秒 = 3000ミリ秒
-            const perCharDelay = 0.01; // 各文字の落下開始遅延
-            const animationDuration = 2; // fall-from-topアニメーションのduration
-            const assembleAndGrowDuration = 1.5; // assembleAndGrowアニメーションのduration
+            const perCharFallDelay = 0.01; // 各文字の落下開始遅延
+            const fallAnimationDuration = 2; // falling-charのアニメーションduration
+            const assembleAndGrowDuration = 1.5; // remaining-charのアニメーションduration
 
             setTimeout(() => {
                 // 崩れる文字のアニメーションを開始
                 const fallingChars = document.querySelectorAll('.falling-char');
                 fallingChars.forEach((char, index) => {
-                    char.style.animation = `fall-from-top ${animationDuration}s forwards`;
-                    char.style.animationDelay = `${perCharDelay * index}s`;
+                    char.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
+                    char.style.animationDelay = `${perCharFallDelay * index}s`;
                 });
 
                 // 崩れるアニメーションの完了を待ってから残る文字を表示＆アニメーション
-                const longestFallingAnimationEndTime = startDelay + (initialText.length - 1) * perCharDelay * 1000 + animationDuration * 1000;
+                const longestFallingAnimationEndTime = (initialText.length - 1) * perCharFallDelay * 1000 + fallAnimationDuration * 1000;
 
                 setTimeout(() => {
                     remainingTextContainer.classList.add('show'); // コンテナ全体を不透明にする
@@ -229,12 +240,9 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                     remainingChars.forEach((char, index) => {
                         // 各文字にアニメーションを適用
                         char.style.animationDelay = `${index * 0.1}s`; // 文字ごとに少し遅延
-                        char.style.fontSize = `80px`; // アニメーション終了時のフォントサイズを設定
+                        char.style.fontSize = `80px`; // アニメーション終了時のフォントサイズを設定 (CSSのkeyframesで制御されるが、念のため)
                     });
-                }, longestFallingAnimationEndTime - Date.now() + startDelay); // 少し複雑だが、正確なタイミングを計算
-                // 上記の計算は少し複雑なので、シンプルに以下のようにしても良いかもしれません（アニメーションが重なる可能性あり）
-                // }, (initialText.length - 1) * perCharDelay * 1000 + animationDuration * 1000 + 500); // 落下アニメーション終了後、少し遅れて開始 (500msの余裕)
-
+                }, longestFallingAnimationEndTime); // 崩れるアニメーション終了と同時に次のアニメーション開始
             }, startDelay); // ここで3秒の遅延を設定
         });
     </script>
