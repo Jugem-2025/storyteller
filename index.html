@@ -76,15 +76,15 @@
             to { opacity: 1; }
         }
 
-        @keyframes fall-from-center { /* 中央から広がるアニメーション */
+        @keyframes fall-from-center { /* 中央から真下へ落ちるアニメーション */
             0% {
                 opacity: 1;
                 transform: translate(0, 0) rotate(0deg); /* 最初の位置 */
             }
             100% {
                 opacity: 0;
-                /* 画面外へランダムに落下・回転 */
-                transform: translate(var(--randX, 0px), var(--randY, 0px)) rotate(var(--randRot, 0deg));
+                /* 真下へランダムに落下・回転 */
+                transform: translate(0px, var(--randY, 0px)) rotate(var(--randRot, 0deg));
             }
         }
 
@@ -196,9 +196,9 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 span.classList.add('falling-char');
                 span.textContent = char;
                 // 各文字のランダムな落下位置と回転を設定
-                // 画面全体に散らばるが、開始は中心から
-                const randX = (Math.random() - 0.5) * window.innerWidth * 1.5; /* 画面幅の1.5倍の範囲 */
-                const randY = (Math.random() - 0.5) * window.innerHeight * 1.5; /* 画面高の1.5倍の範囲 */
+                // X方向の移動は0に固定し、Y方向は常に下へ落ちるようにする
+                const randX = 0; // X方向の移動はなし
+                const randY = Math.random() * window.innerHeight * 1.5; /* 常に画面下方向へ */
                 const randRot = Math.random() * 1080 - 540; /* より大きく回転 */
                 span.style.setProperty('--randX', `${randX}px`);
                 span.style.setProperty('--randY', `${randY}px`);
