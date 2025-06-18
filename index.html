@@ -26,72 +26,68 @@
             height: 100vh;
             font-family: 'Oswald', sans-serif; /* 文章のフォントをOswaldに設定 */
             font-weight: 500; /* Oswald Mediumに相当 */
-            font-size: 20px; /* フォントサイズを20pxに設定 */
             color: #000000; /* 文字色を黒に設定 */
         }
 
         .container {
             position: relative;
-            text-align: center;
-            padding: 20px;
-            /* containerの最大幅をなくし、text-wrapperで幅を制御 */
-            /* max-width: 90vw; を削除またはコメントアウト */
-            width: 100vw; /* ビューポート全体の幅を使用 */
-            height: 100vh; /* ビューポート全体の高さを使用 */
-            display: flex; /* Flexboxで子要素を中央に配置 */
-            justify-content: center;
-            align-items: center;
+            text-align: left; /* 左上から開始するためleftに変更 */
+            width: 100vw;
+            height: 100vh;
+            display: block; /* Flexboxではなくブロック要素として配置 */
+            padding: 20px; /* 余白を追加 */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
         }
 
         .text-wrapper {
-            position: absolute; /* absoluteを維持 */
-            /* widthをより広めに設定し、横幅を確保 */
-            width: 80vw; /* ビューポート幅の80%を使用。必要に応じて調整 */
-            max-width: 1200px; /* 例えば、最大1200pxに制限（任意） */
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            white-space: pre-wrap;
-            line-height: 1.5;
-            text-align: center; /* 長いテキストが折り返された際の中央揃えを強化 */
-            overflow-y: auto; /* テキストが多すぎて画面に収まらない場合にスクロール可能にする */
-            max-height: 90vh; /* テキスト領域の最大高さを設定。画面からはみ出しにくくする */
+            position: relative; /* absoluteではなくrelativeに変更 */
+            width: 100%; /* 親要素の幅いっぱいに広がる */
+            height: auto; /* 高さはコンテンツに合わせる */
+            display: block; /* block要素として配置 */
+            white-space: pre-wrap; /* 改行コードを有効にする */
+            line-height: 1.2; /* 行の高さを調整 */
+            text-align: left; /* 左揃え */
+            overflow: hidden; /* 崩れる前はテキストを隠さない */
+            font-size: 10px; /* フォントサイズを半分に（20pxの半分） */
         }
 
         .falling-char {
             display: inline-block;
             opacity: 1;
-            transform: translateY(0);
-            animation: fall 2s forwards;
-            animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            transform: translateY(0) rotate(0deg); /* 回転アニメーションも追加 */
+            animation: fall-from-top 2s forwards; /* 新しいアニメーションを適用 */
+            animation-timing-function: ease-out; /* アニメーションカーブを変更 */
+            position: relative; /* z-indexのためにrelativeに */
+            z-index: 2; /* 崩れる文字が手前になるように */
         }
 
-        @keyframes fall {
+        /* 各文字の落下開始時間をずらすための遅延設定 */
+        /* これはJavaScriptで動的に設定するため、CSSでの設定は不要 */
+
+        @keyframes fall-from-top {
             0% {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) rotate(0deg);
             }
             100% {
                 opacity: 0;
-                transform: translateY(200px);
+                transform: translateY(100vh) rotate(720deg); /* 画面下まで落下し、回転 */
             }
         }
 
         .remaining-text-container {
             position: absolute;
             width: 100%;
-            bottom: 20%;
+            bottom: 20%; /* 画面下部からの位置を調整 */
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             justify-content: center;
             font-family: 'Storyteller', cursive;
-            font-size: 80px;
+            font-size: 80px; /* 残る文字のサイズはそのまま */
             color: #000000;
             white-space: nowrap;
+            z-index: 1; /* 残る文字は奥に */
         }
 
         .remaining-char {
@@ -154,14 +150,18 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
             const remainingText = "Storyteller";
 
+            // 崩れ落ちる文字を動的に生成
             initialText.split('').forEach((char, index) => {
                 const span = document.createElement('span');
                 span.classList.add('falling-char');
                 span.textContent = char;
-                span.style.animationDelay = `${0.02 * index}s`;
+                // 各文字の落下開始時間をずらす
+                // 文字数が非常に多いため、遅延時間は短く保ちます
+                span.style.animationDelay = `${0.01 * index}s`; // さらに遅延時間を短縮
                 animatedTextElement.appendChild(span);
             });
 
+            // 残る文字を動的に生成
             remainingText.split('').forEach(char => {
                 const span = document.createElement('span');
                 span.classList.add('remaining-char');
@@ -169,9 +169,10 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 remainingTextContainer.appendChild(span);
             });
 
-            const longestAnimationDelay = (initialText.length - 1) * 0.02;
-            const animationDuration = 2;
-            const fadeInDuration = 0.5;
+            // 崩れるアニメーションの完了を待ってから残る文字を表示
+            const longestAnimationDelay = (initialText.length - 1) * 0.01; // 上記の遅延時間に合わせて調整
+            const animationDuration = 2; // fall-from-topアニメーションのduration
+            const fadeInDuration = 0.5; // remaining-charのtransition時間
 
             setTimeout(() => {
                 remainingTextContainer.classList.add('show');
