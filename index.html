@@ -34,33 +34,41 @@
             position: relative;
             text-align: center;
             padding: 20px;
-            /* 長いテキストに対応するため、必要に応じてcontainerの最大幅を設定 */
-            max-width: 90vw; /* 例: ビューポートの幅の90% */
+            /* containerの最大幅をなくし、text-wrapperで幅を制御 */
+            /* max-width: 90vw; を削除またはコメントアウト */
+            width: 100vw; /* ビューポート全体の幅を使用 */
+            height: 100vh; /* ビューポート全体の高さを使用 */
+            display: flex; /* Flexboxで子要素を中央に配置 */
+            justify-content: center;
+            align-items: center;
         }
 
         .text-wrapper {
-            position: absolute; /* absoluteを維持し、transformで中央に配置 */
-            width: 100%;
+            position: absolute; /* absoluteを維持 */
+            /* widthをより広めに設定し、横幅を確保 */
+            width: 80vw; /* ビューポート幅の80%を使用。必要に応じて調整 */
+            max-width: 1200px; /* 例えば、最大1200pxに制限（任意） */
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            display: flex; /* flexboxで文字を並べる */
-            flex-wrap: wrap; /* テキストが長すぎる場合に折り返す */
-            justify-content: center; /* 中央揃え */
-            white-space: pre-wrap; /* 改行コードを有効にする */
-            line-height: 1.5; /* 行の高さを調整 */
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            text-align: center; /* 長いテキストが折り返された際の中央揃えを強化 */
+            overflow-y: auto; /* テキストが多すぎて画面に収まらない場合にスクロール可能にする */
+            max-height: 90vh; /* テキスト領域の最大高さを設定。画面からはみ出しにくくする */
         }
 
         .falling-char {
             display: inline-block;
             opacity: 1;
             transform: translateY(0);
-            animation: fall 2s forwards; /* アニメーション時間を調整 */
+            animation: fall 2s forwards;
             animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            /* 個々の文字のフォントやサイズは親から継承 */
         }
 
-        /* @keyframes fall はそのまま */
         @keyframes fall {
             0% {
                 opacity: 1;
@@ -68,33 +76,32 @@
             }
             100% {
                 opacity: 0;
-                transform: translateY(200px); /* 落下距離を調整 */
+                transform: translateY(200px);
             }
         }
 
         .remaining-text-container {
             position: absolute;
             width: 100%;
-            bottom: 20%; /* 画面下部からの位置を調整 */
+            bottom: 20%;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             justify-content: center;
-            font-family: 'Storyteller', cursive; /* Storytellerフォントを適用 */
-            font-size: 80px; /* 残る文字のサイズを調整 */
-            color: #000000; /* 残る文字の色も黒 */
+            font-family: 'Storyteller', cursive;
+            font-size: 80px;
+            color: #000000;
             white-space: nowrap;
         }
 
         .remaining-char {
             display: inline-block;
-            opacity: 0; /* 最初は非表示 */
-            transition: opacity 0.5s ease-in-out; /* フェードインのアニメーション */
-            /* Storytellerのアルファベット一つ一つが独立して残るため、特別なアニメーションは不要 */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
         }
 
         .remaining-text-container.show .remaining-char {
-            opacity: 1; /* アニメーション後に表示 */
+            opacity: 1;
         }
     </style>
 </head>
@@ -111,7 +118,6 @@
             const animatedTextElement = document.getElementById('animatedText');
             const remainingTextContainer = document.getElementById('remainingText');
 
-            // 崩れ落ちる文章として、ご指定の長い文字列を設定
             const initialText = `FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
 GRAFFITI ARTIST FENG SHUI MASTER
 PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
@@ -146,21 +152,16 @@ ENGLISH TEACHER MATCHMAKER HOMELESS
 HOMELESS STREET SINGER / STORYTELLER MONK
 STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
-            const remainingText = "Storyteller"; // 最後に残る文字
+            const remainingText = "Storyteller";
 
-            // 崩れ落ちる文字を動的に生成
             initialText.split('').forEach((char, index) => {
                 const span = document.createElement('span');
                 span.classList.add('falling-char');
                 span.textContent = char;
-                // 各文字の落下開始時間をずらす
-                // 長いテキストなので、アニメーションが非常に長くなる可能性があります。
-                // 必要に応じて、遅延時間の計算方法を調整してください。
-                span.style.animationDelay = `${0.02 * index}s`; // 遅延時間を短く調整
+                span.style.animationDelay = `${0.02 * index}s`;
                 animatedTextElement.appendChild(span);
             });
 
-            // 残る文字を動的に生成
             remainingText.split('').forEach(char => {
                 const span = document.createElement('span');
                 span.classList.add('remaining-char');
@@ -168,15 +169,13 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 remainingTextContainer.appendChild(span);
             });
 
-            // 崩れるアニメーションの完了を待ってから残る文字を表示
-            // 最も遅い文字のアニメーション時間 + 遅延時間 + フェードイン時間
-            const longestAnimationDelay = (initialText.length - 1) * 0.02; // 上記の遅延時間に合わせて調整
-            const animationDuration = 2; // fallアニメーションのduration
-            const fadeInDuration = 0.5; // remaining-charのtransition時間
+            const longestAnimationDelay = (initialText.length - 1) * 0.02;
+            const animationDuration = 2;
+            const fadeInDuration = 0.5;
 
             setTimeout(() => {
                 remainingTextContainer.classList.add('show');
-            }, (longestAnimationDelay + animationDuration) * 1000); // ミリ秒に変換
+            }, (longestAnimationDelay + animationDuration) * 1000);
         });
     </script>
 </body>
