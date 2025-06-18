@@ -33,8 +33,9 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            /* display: flex; はbodyで設定済みなので不要 */
-            /* justify-content: center; align-items: center; もbodyで設定済み */
+            display: flex; /* 中央配置のためにflexを使用 */
+            justify-content: center;
+            align-items: center;
             padding: 20px;
             box-sizing: border-box;
             overflow: hidden; /* 子要素のはみ出しを隠す */
@@ -82,7 +83,7 @@
             }
             100% {
                 opacity: 0;
-                /* ランダムな方向へ画面外に落下 */
+                /* 画面外へランダムに落下・回転 */
                 transform: translate(var(--randX, 0px), var(--randY, 0px)) rotate(var(--randRot, 0deg));
             }
         }
@@ -120,7 +121,7 @@
         }
 
         .remaining-text-container.show .remaining-char {
-            animation: assembleAndGrow 1.5s forwards ease-out;
+            animation: assembleAndGrow 1.5s forwards cubic-bezier(0.25, 0.1, 0.25, 1); /* ヌルッと動くカーブ */
             /* animation-delay はJSで設定 */
         }
 
@@ -131,10 +132,6 @@
             }
             1% {
                 opacity: 1; /* アニメーション開始直後に不透明に */
-            }
-            50% {
-                opacity: 1;
-                transform: translate(0, 0) scale(1.2) rotate(0deg); /* 中央に集まる */
             }
             100% {
                 opacity: 1;
@@ -199,23 +196,22 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 span.classList.add('falling-char');
                 span.textContent = char;
                 // 各文字のランダムな落下位置と回転を設定
-                // 中央からより大きく散らばるように調整
-                const randX = (Math.random() - 0.5) * window.innerWidth; // 画面幅全体に散らばる
-                const randY = (Math.random() - 0.5) * window.innerHeight; // 画面高全体に散らばる
-                const randRot = Math.random() * 1080 - 540; // より大きく回転
+                // 画面全体に散らばるが、開始は中心から
+                const randX = (Math.random() - 0.5) * window.innerWidth * 1.5; /* 画面幅の1.5倍の範囲 */
+                const randY = (Math.random() - 0.5) * window.innerHeight * 1.5; /* 画面高の1.5倍の範囲 */
+                const randRot = Math.random() * 1080 - 540; /* より大きく回転 */
                 span.style.setProperty('--randX', `${randX}px`);
                 span.style.setProperty('--randY', `${randY}px`);
                 span.style.setProperty('--randRot', `${randRot}deg`);
                 animatedTextElement.appendChild(span);
             });
 
-            // 残る文字を動的に生成し、当初は崩れる文字と同じ位置で表示
+            // 残る文字を動的に生成
             const remainingCharElements = [];
             remainingText.split('').forEach((char, index) => {
                 const span = document.createElement('span');
                 span.classList.add('remaining-char');
                 span.textContent = char;
-                // ここではまだランダムな位置を設定しない
                 remainingTextContainer.appendChild(span);
                 remainingCharElements.push(span);
             });
@@ -240,19 +236,22 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 setTimeout(() => {
                     // remaining-charの初期位置をランダムに設定し、アニメーションを開始
                     remainingCharElements.forEach((char, index) => {
-                        // ランダムな初期位置と回転を設定（中央からの相対位置）
-                        const randomX = (Math.random() - 0.5) * 600; // 散らばる範囲を調整
-                        const randomY = (Math.random() - 0.5) * 600;
-                        const randomRot = Math.random() * 720 - 360;
+                        // ランダムな初期位置と回転を設定（コンテナ中央からの相対位置）
+                        // 震えをなくすため、ランダム範囲を広げすぎない
+                        const randomX = (Math.random() - 0.5) * 400; // -200pxから200px
+                        const randomY = (Math.random() - 0.5) * 400; // -200pxから200px
+                        const randomRot = Math.random() * 180 - 90; // -90degから90deg
 
                         char.style.setProperty('--x', `${randomX}px`);
                         char.style.setProperty('--y', `${randomY}px`);
                         char.style.setProperty('--rot', `${randomRot}deg`);
-                        char.style.opacity = '0'; // アニメーション開始前は非表示に
-                        char.style.transform = `translate(${randomX}px, ${randomY}px) scale(0) rotate(${randomRot}deg)`; // 初期状態も更新
+
+                        // アニメーション開始前にtransformを設定
+                        char.style.opacity = '0'; /* アニメーション開始前は透明に */
+                        char.style.transform = `translate(${randomX}px, ${randomY}px) scale(0) rotate(${randomRot}deg)`;
 
                         // 実際のassembleAndGrowアニメーションを適用
-                        char.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards ease-out`;
+                        char.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards cubic-bezier(0.25, 0.1, 0.25, 1)`;
                         char.style.animationDelay = `${index * 0.1}s`; // 文字ごとに少し遅延
                     });
                     remainingTextContainer.classList.add('show'); // コンテナ全体を不透明にする
