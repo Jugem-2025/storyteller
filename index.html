@@ -157,7 +157,8 @@
             100% {
                 opacity: 1;
                 transform: translate(0, 0) scale(1) rotate(0deg); /* 整列して最終サイズ */
-                font-size: 80px; /* 最終的なフォントサイズ */
+                /* ここを修正：画面サイズに応じてフォントサイズを調整 */
+                font-size: min(80px, 6vw); /* 最大80px、またはビューポート幅の6%の小さい方 */
             }
         }
     </style>
