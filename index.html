@@ -48,6 +48,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            /* 初期状態ではflexで配置し、getBoundingClientRectで正確な位置を取得 */
             display: flex;
             flex-wrap: wrap;
             justify-content: center; /* 中央揃え */
@@ -61,15 +62,34 @@
             pointer-events: none; /* マウスイベントを受け付けない */
         }
 
+        .char-placeholder {
+            display: inline-block; /* 位置計算のためのプレースホルダー */
+            opacity: 0; /* 見えないようにする */
+            pointer-events: none;
+            visibility: hidden; /* DOMから消すことなく非表示 */
+        }
+
+        /* 崩れ落ちる文字 */
         .falling-char {
-            display: inline-block; /* インラインブロックでテキストの流れを維持 */
+            display: inline-block;
             opacity: 1;
             transform: translateY(0) rotate(0deg);
             animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 最初のカーブに戻す */
-            position: relative; /* z-indexのためにrelativeに */
+            position: absolute; /* 位置計算後にabsoluteに設定 */
             z-index: 2; /* 崩れる文字が手前になるように */
             will-change: transform, opacity; /* アニメーションのパフォーマンス最適化 */
         }
+
+        /* その場に残る文字 (初期状態) */
+        .fixed-char {
+            display: inline-block; /* 位置計算後にabsoluteに設定 */
+            opacity: 1;
+            position: absolute; /* 位置計算後にabsoluteに設定 */
+            z-index: 3; /* 崩れる文字より手前 */
+            pointer-events: none;
+            will-change: transform, opacity;
+        }
+
 
         @keyframes fadeInText {
             from { opacity: 0; }
@@ -100,7 +120,7 @@
             font-size: 0; /* 初期サイズを0 */
             color: #000000;
             white-space: nowrap;
-            z-index: 3; /* 常に最前面に表示 */
+            z-index: 5; /* 最前面に表示 */
             opacity: 0; /* 初期状態は完全に透明 */
             pointer-events: none; /* マウスイベントを受け付けない */
         }
@@ -188,74 +208,133 @@ ENGLISH TEACHER MATCHMAKER HOMELESS
 HOMELESS STREET SINGER / STORYTELLER MONK
 STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
-            const remainingText = "Storyteller";
+            const targetWord = "Storyteller";
+            const initialTextChars = initialText.split('');
+            let fixedCharData = []; // "Storyteller"文字の初期位置と要素を格納 (順番を保持)
+            let targetWordIndex = 0; // targetWordの現在の文字のインデックス
 
-            // 崩れ落ちる文字を動的に生成
-            initialText.split('').forEach((char, index) => {
-                const span = document.createElement('span');
-                span.classList.add('falling-char');
-                span.textContent = char;
-                // 各文字のランダムな落下位置と回転を設定
-                // X方向にもY方向にも大きく広がるように調整
-                const randX = (Math.random() - 0.5) * window.innerWidth * 2; /* 画面幅の2倍の範囲で左右に広がる */
-                const randY = Math.random() * window.innerHeight * 2; /* 画面高の2倍の範囲で下方向に広がる */
-                const randRot = Math.random() * 1080 - 540; /* より大きく回転 */
-                span.style.setProperty('--randX', `${randX}px`);
-                span.style.setProperty('--randY', `${randY}px`);
-                span.style.setProperty('--randRot', `${randRot}deg`);
-                animatedTextElement.appendChild(span);
+            // STEP 1: すべての文字をプレースホルダーとして一旦text-wrapperに配置し、正確な位置を取得
+            // これにより、文字がブラウザによってレイアウトされた時点での正確な座標がわかる
+            initialTextChars.forEach((char, index) => {
+                const tempSpan = document.createElement('span');
+                // スペースや改行はそのままDOMに追加
+                if (char === ' ') {
+                    tempSpan.innerHTML = '&nbsp;'; // スペースも正確に位置を保持するため
+                } else if (char === '\n') {
+                    tempSpan.innerHTML = '<br>'; // 改行も正確に位置を保持するため
+                } else {
+                    tempSpan.textContent = char;
+                }
+                tempSpan.classList.add('char-placeholder'); // 一時的なクラス
+                animatedTextElement.appendChild(tempSpan);
             });
 
-            // 残る文字を動的に生成
-            const remainingCharElements = [];
-            remainingText.split('').forEach((char, index) => {
-                const span = document.createElement('span');
-                span.classList.add('remaining-char');
-                span.textContent = char;
-                remainingTextContainer.appendChild(span);
-                remainingCharElements.push(span);
-            });
-
-            // ページロードから3秒後にアニメーションを開始
-            const startDelay = 3000; // 3秒 = 3000ミリ秒
-            const perCharFallDelay = 0.005; // 各文字の落下開始遅延をさらに短縮し、より一斉に「ザーっと」
-            const fallAnimationDuration = 2; // falling-charのアニメーションduration
-            const assembleAndGrowDuration = 1.5; // remaining-charのアニメーションduration
-
+            // text-wrapperがレンダリングされてからgetBoundingClientRectを取得
+            // setTimeoutを挟むことでDOMのレンダリングを待つ
             setTimeout(() => {
-                // 崩れる文字のアニメーションを開始
-                const fallingChars = document.querySelectorAll('.falling-char');
-                fallingChars.forEach((char, index) => {
-                    char.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
-                    char.style.animationDelay = `${perCharFallDelay * index}s`; // 短いディレイで一斉感を出す
+                const placeholders = animatedTextElement.querySelectorAll('.char-placeholder');
+                const animatedTextElementRect = animatedTextElement.getBoundingClientRect();
+
+                // STEP 2: 各文字をFallingCharまたはFixedCharとして再生成し、絶対位置を設定
+                placeholders.forEach((placeholder, index) => {
+                    const char = initialTextChars[index]; // 元の文字
+                    if (char === '\n') { // 改行タグの場合は何もしない
+                        placeholder.remove(); // プレースホルダーを削除
+                        return;
+                    }
+
+                    const charRect = placeholder.getBoundingClientRect(); // プレースホルダーの位置を取得
+
+                    const span = document.createElement('span');
+                    span.textContent = char;
+
+                    // text-wrapper内の相対位置を設定
+                    span.style.left = `${charRect.left - animatedTextElementRect.left}px`;
+                    span.style.top = `${charRect.top - animatedTextElementRect.top}px`;
+                    span.style.position = 'absolute'; // 絶対位置で固定
+
+                    // "Storyteller"の文字を前から順番に探して確保するロジック
+                    if (targetWordIndex < targetWord.length && char.toLowerCase() === targetWord[targetWordIndex].toLowerCase()) {
+                        span.classList.add('fixed-char');
+                        fixedCharData.push({ element: span, char: char, initialRect: charRect, originalIndex: index }); // originalIndexも保持
+                        targetWordIndex++; // 次に探すtargetWordの文字へ
+                    } else {
+                        span.classList.add('falling-char');
+                    }
+
+                    animatedTextElement.appendChild(span);
+                    placeholder.remove(); // プレースホルダーを削除
                 });
 
-                // 崩れるアニメーションの完了を待ってから残る文字のバラバラアニメーションを開始
-                const longestFallingAnimationEndTime = perCharFallDelay * (initialText.length - 1) * 1000 + fallAnimationDuration * 1000;
+                // ここからアニメーションの開始ロジック
+
+                const startDelay = 3000; // 3秒 = 3000ミリ秒
+                const perCharFallDelay = 0.005; // 各文字の落下開始遅延をさらに短縮し、より一斉に「ザーっと」
+                const fallAnimationDuration = 2; // falling-charのアニメーションduration
+                const assembleAndGrowDuration = 1.5; // remaining-charのアニメーションduration
 
                 setTimeout(() => {
-                    // remaining-charの初期位置をランダムに設定し、アニメーションを開始
-                    remainingCharElements.forEach((char, index) => {
-                        // ランダムな初期位置と回転を設定（コンテナ中央からの相対位置）
-                        const randomX = (Math.random() - 0.5) * 400; // -200pxから200px
-                        const randomY = (Math.random() - 0.5) * 400; // -200pxから200px
-                        const randomRot = Math.random() * 180 - 90; // -90degから90deg
+                    // 崩れる文字のアニメーションを開始
+                    const fallingChars = document.querySelectorAll('.falling-char');
+                    fallingChars.forEach((charElement, charIndex) => {
+                        // X方向にもY方向にも大きく広がるように調整
+                        const randX = (Math.random() - 0.5) * window.innerWidth * 2; /* 画面幅の2倍の範囲で左右に広がる */
+                        const randY = Math.random() * window.innerHeight * 2; /* 画面高の2倍の範囲で下方向に広がる */
+                        const randRot = Math.random() * 1080 - 540; /* より大きく回転 */
+                        charElement.style.setProperty('--randX', `${randX}px`);
+                        charElement.style.setProperty('--randY', `${randY}px`);
+                        charElement.style.setProperty('--randRot', `${randRot}deg`);
 
-                        char.style.setProperty('--x', `${randomX}px`);
-                        char.style.setProperty('--y', `${randomY}px`);
-                        char.style.setProperty('--rot', `${randomRot}deg`);
-
-                        // アニメーション開始前にtransformを設定
-                        char.style.opacity = '0'; /* アニメーション開始前は透明に */
-                        char.style.transform = `translate(${randomX}px, ${randomY}px) scale(0) rotate(${randomRot}deg)`;
-
-                        // 実際のassembleAndGrowアニメーションを適用
-                        char.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards cubic-bezier(0.25, 0.1, 0.25, 1)`;
-                        char.style.animationDelay = `${index * 0.1}s`; // 文字ごとに少し遅延
+                        charElement.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
+                        charElement.style.animationDelay = `${perCharFallDelay * charIndex}s`; // 短いディレイで一斉感を出す
                     });
-                    remainingTextContainer.classList.add('show'); // コンテナ全体を不透明にする
-                }, longestFallingAnimationEndTime); // 崩れるアニメーション終了と同時に次のアニメーション開始
-            }, startDelay); // ここで3秒の遅延を設定
+
+                    // 崩れるアニメーションの完了を待ってから残る文字のバラバラアニメーションを開始
+                    // 最も遅い落下アニメーションの終了時間
+                    const longestFallingAnimationEndTime = perCharFallDelay * (initialText.length - 1) * 1000 + fallAnimationDuration * 1000;
+
+                    setTimeout(() => {
+                        // fixed-charをremaining-text-containerに移動し、集まるアニメーションを開始
+                        // fixedCharDataはすでにtargetWordの順番に並んでいる
+                        fixedCharData.forEach((data, index) => {
+                            const originalElement = data.element;
+                            const char = data.char;
+                            const originalRect = data.initialRect;
+
+                            // remaining-char要素を新しく作成
+                            const span = document.createElement('span');
+                            span.classList.add('remaining-char');
+                            span.textContent = char;
+
+                            // アニメーションの開始位置を元の位置に設定
+                            // remaining-text-containerの中心からの相対位置に変換
+                            const remainingTextContainerRect = remainingTextContainer.getBoundingClientRect();
+                            const relativeX = (originalRect.left + originalRect.width / 2) - (remainingTextContainerRect.left + remainingTextContainerRect.width / 2);
+                            const relativeY = (originalRect.top + originalRect.height / 2) - (remainingTextContainerRect.top + remainingTextContainerRect.height / 2);
+
+                            span.style.setProperty('--x', `${relativeX}px`);
+                            span.style.setProperty('--y', `${relativeY}px`);
+                            span.style.setProperty('--rot', `${Math.random() * 180 - 90}deg`); // 初期回転はランダムに
+
+                            // アニメーション開始前にtransformを設定
+                            span.style.opacity = '0'; /* アニメーション開始前は透明に */
+                            span.style.transform = `translate(${relativeX}px, ${relativeY}px) scale(0) rotate(${Math.random() * 180 - 90}deg)`;
+
+
+                            // 実際のassembleAndGrowアニメーションを適用
+                            span.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards cubic-bezier(0.25, 0.1, 0.25, 1)`;
+                            // 崩壊完了からの追加ディレイ
+                            // index * 0.1 を使うことで、"Storyteller"の文字が順番に集まるように見せる
+                            span.style.animationDelay = `${index * 0.1}s`; 
+
+                            remainingTextContainer.appendChild(span);
+                            originalElement.remove(); // 元のfixed-charをDOMから削除
+                        });
+                        remainingTextContainer.classList.add('show'); // コンテナ全体を不透明にする
+
+                    }, longestFallingAnimationEndTime); // 崩れるアニメーション終了と同時に次のアニメーション開始
+                }, startDelay); // ここで3秒の遅延を設定
+            }, 100); // DOMレンダリングを待つための短い遅延
         });
     </script>
 </body>
