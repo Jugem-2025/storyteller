@@ -62,7 +62,7 @@
         }
 
         .falling-char {
-            display: inline-block;
+            display: inline-block; /* インラインブロックでテキストの流れを維持 */
             opacity: 1;
             transform: translateY(0) rotate(0deg);
             animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 最初のカーブに戻す */
@@ -76,15 +76,15 @@
             to { opacity: 1; }
         }
 
-        @keyframes fall-from-center { /* 中央から真下へ落ちるアニメーション */
+        @keyframes fall-from-center { /* 中心から「ザーっと」広がりながら落下するアニメーション */
             0% {
                 opacity: 1;
                 transform: translate(0, 0) rotate(0deg); /* 最初の位置 */
             }
             100% {
                 opacity: 0;
-                /* 真下へランダムに落下・回転 */
-                transform: translate(0px, var(--randY, 0px)) rotate(var(--randRot, 0deg));
+                /* X方向にもY方向にも大きく広がりながら落下・回転 */
+                transform: translate(var(--randX, 0px), var(--randY, 0px)) rotate(var(--randRot, 0deg));
             }
         }
 
@@ -196,9 +196,9 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 span.classList.add('falling-char');
                 span.textContent = char;
                 // 各文字のランダムな落下位置と回転を設定
-                // X方向の移動は0に固定し、Y方向は常に下へ落ちるようにする
-                const randX = 0; // X方向の移動はなし
-                const randY = Math.random() * window.innerHeight * 1.5; /* 常に画面下方向へ */
+                // X方向にもY方向にも大きく広がるように調整
+                const randX = (Math.random() - 0.5) * window.innerWidth * 2; /* 画面幅の2倍の範囲で左右に広がる */
+                const randY = Math.random() * window.innerHeight * 2; /* 画面高の2倍の範囲で下方向に広がる */
                 const randRot = Math.random() * 1080 - 540; /* より大きく回転 */
                 span.style.setProperty('--randX', `${randX}px`);
                 span.style.setProperty('--randY', `${randY}px`);
@@ -218,7 +218,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
             // ページロードから3秒後にアニメーションを開始
             const startDelay = 3000; // 3秒 = 3000ミリ秒
-            const perCharFallDelay = 0.005; // 各文字の落下開始遅延をさらに短縮し、より一斉に
+            const perCharFallDelay = 0.005; // 各文字の落下開始遅延をさらに短縮し、より一斉に「ザーっと」
             const fallAnimationDuration = 2; // falling-charのアニメーションduration
             const assembleAndGrowDuration = 1.5; // remaining-charのアニメーションduration
 
@@ -227,7 +227,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 const fallingChars = document.querySelectorAll('.falling-char');
                 fallingChars.forEach((char, index) => {
                     char.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
-                    char.style.animationDelay = `${perCharFallDelay * index}s`;
+                    char.style.animationDelay = `${perCharFallDelay * index}s`; // 短いディレイで一斉感を出す
                 });
 
                 // 崩れるアニメーションの完了を待ってから残る文字のバラバラアニメーションを開始
@@ -237,7 +237,6 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                     // remaining-charの初期位置をランダムに設定し、アニメーションを開始
                     remainingCharElements.forEach((char, index) => {
                         // ランダムな初期位置と回転を設定（コンテナ中央からの相対位置）
-                        // 震えをなくすため、ランダム範囲を広げすぎない
                         const randomX = (Math.random() - 0.5) * 400; // -200pxから200px
                         const randomY = (Math.random() - 0.5) * 400; // -200pxから200px
                         const randomRot = Math.random() * 180 - 90; // -90degから90deg
