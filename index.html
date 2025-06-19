@@ -42,10 +42,12 @@
         }
 
         .text-wrapper {
-            position: relative; /* 文字のabsolute配置の基準とするためrelative */
+            position: absolute; /* 親コンテナの中央に配置 */
             width: 80vw;
             max-width: 1200px;
-            /* line-heightなどのテキストスタイル */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* 中央寄せ */
             line-height: 1.2; /* 行間をさらに狭く調整 */
             letter-spacing: 0.08em; /* 文字間隔は維持 */
             font-size: 14px; /* フォントサイズは維持 */
@@ -53,44 +55,46 @@
             pointer-events: none; /* マウスイベントを受け付けない */
             text-align: center; /* 中央揃え */
             transition: opacity 0.5s ease-out; /* 崩れた後のフェードアウト用 */
-            /* 初期は通常フローでテキストを表示するため、flex関連は削除 */
+            /* flex関連は初期配置には使用しない */
         }
 
-        /* 文字ごとのspan要素のベーススタイル */
-        .char-span {
+        /* 初期配置用のプレースホルダー（位置取得用） */
+        .char-placeholder-layout {
             display: inline-block; /* 通常フローで文字を並べる */
-            white-space: pre; /* 空白と改行を保持 */
-            /* 必要に応じてline-heightやletter-spacingを個別に調整できるが、基本はtext-wrapperで継承 */
+            white-space: pre; /* 空白を保持 */
+            visibility: hidden; /* 見えないようにするが、スペースは確保 */
+            font-size: 14px; /* text-wrapperと同じフォントサイズを明示的に指定 */
+            line-height: 1.2; /* text-wrapperと同じline-heightを明示的に指定 */
+            letter-spacing: 0.08em; /* text-wrapperと同じletter-spacingを明示的に指定 */
         }
-        
-        .char-span.absolute-positioned { /* 位置確定後にabsoluteにするためのクラス */
-            position: absolute;
-            /* transform を使って正確な位置に配置する */
-            top: 0; /* JSで計算したY座標をセット */
-            left: 0; /* JSで計算したX座標をセット */
-            /* transform: translate(var(--x-pos), var(--y-pos)); */ /* JSで計算した絶対座標 */
-            /* transformのtranslateは、要素自身の位置を基準とするため、
-               top/leftと併用する場合は注意が必要。ここではleft/topで直接指定する */
+        /* <br>タグのプレースホルダー */
+        .br-placeholder-layout {
+            display: block; /* <br>はブロック要素として改行 */
+            visibility: hidden; /* 見えないようにするが、スペースは確保 */
+            line-height: 1.2; /* text-wrapperと同じline-heightを明示的に指定 */
         }
 
-        /* 崩れ落ちる文字 */
-        .falling-char {
-            /* .char-spanのスタイルを継承 */
-            opacity: 1; /* 初期は不透明 */
-            transform: translateY(0) rotate(0deg); /* 初期状態 */
-            animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+
+        /* アニメーション用の文字要素 */
+        .animated-char {
+            display: inline-block; /* これも初期は inline-block */
+            position: absolute; /* JSで位置確定後にabsoluteにする */
+            opacity: 1;
+            transform: translate(0, 0) rotate(0deg); /* 初期状態 */
             z-index: 2; /* 崩れる文字が手前になるように */
             will-change: transform, opacity; /* アニメーションのパフォーマンス最適化 */
         }
+        
+        /* 崩れ落ちる文字 */
+        .falling-char {
+            /* .animated-charのスタイルを継承 */
+            animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
 
-        /* その場に残る文字 (初期状態) */
+        /* その場に残る文字 (固定文字、Storyteller以外の**文字、<br>) */
         .fixed-char {
-            /* .char-spanのスタイルを継承 */
-            opacity: 1; /* 初期は不透明 */
-            transform: translateY(0) rotate(0deg); /* 初期状態 */
+            /* .animated-charのスタイルを継承 */
             z-index: 3; /* 崩れる文字より手前 */
-            pointer-events: none;
-            will-change: transform, opacity;
         }
 
         @keyframes fall-from-center { /* 中心から「ザーっと」広がりながら落下するアニメーション */
@@ -100,7 +104,6 @@
             }
             100% {
                 opacity: 0;
-                /* absolute化された位置からの相対移動 */
                 transform: translate(var(--randX, 0px), var(--randY, 0px)) rotate(var(--randRot, 0deg));
             }
         }
@@ -203,20 +206,28 @@
             const animatedTextElement = document.getElementById('animatedText');
             const remainingTextContainer = document.getElementById('remainingText');
 
+            // HTMLから直接テキストコンテンツを取得
             const initialTextContent = animatedTextElement.innerHTML;
             const targetWord = "Storyteller";
-            let fixedCharData = [];
-            let targetWordIndex = 0;
+            let initialCharPositions = []; // 各文字の初期位置情報を格納
 
-            // 初期化: text-wrapperの中身を空にする
+            // STEP 1: 初期レイアウト用のプレースホルダーを挿入
+            // animatedTextElementの中身を一時的に空にして、プレースホルダーで埋める
             animatedTextElement.innerHTML = '';
+            const tempLayoutDiv = document.createElement('div');
+            tempLayoutDiv.style.cssText = `
+                width: inherit;
+                max-width: inherit;
+                line-height: inherit;
+                letter-spacing: inherit;
+                font-size: inherit;
+                text-align: inherit;
+                visibility: hidden; /* 見えないようにするが、レイアウトには参加させる */
+            `;
+            animatedTextElement.appendChild(tempLayoutDiv);
 
-            // STEP 1: HTMLコンテンツを解析し、各文字を通常フローで配置した<span>要素として挿入
-            // <br>タグはそのまま<br>要素として挿入し、その位置を取得する
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = initialTextContent;
-
-            const processNodeForInitialLayout = (node) => {
+            // HTMLコンテンツを解析し、プレースホルダー（char-placeholder-layout または br-placeholder-layout）を tempLayoutDiv に挿入
+            const parseAndInsertPlaceholders = (node) => {
                 if (node.nodeType === Node.TEXT_NODE) {
                     const text = node.textContent;
                     const nonCollapsiblePattern = /\*\*(.*?)\*\*/g;
@@ -225,170 +236,161 @@
 
                     while ((match = nonCollapsiblePattern.exec(text)) !== null) {
                         for (let i = lastIndex; i < match.index; i++) {
-                            appendCharSpanForLayout(text[i], false);
+                            appendPlaceholderSpan(text[i], false);
                         }
                         for (let i = 0; i < match[1].length; i++) {
-                            appendCharSpanForLayout(match[1][i], true);
+                            appendPlaceholderSpan(match[1][i], true);
                         }
                         lastIndex = nonCollapsiblePattern.lastIndex;
                     }
                     for (let i = lastIndex; i < text.length; i++) {
-                        appendCharSpanForLayout(text[i], false);
+                        appendPlaceholderSpan(text[i], false);
                     }
                 } else if (node.nodeType === Node.ELEMENT_NODE) {
                     if (node.tagName.toLowerCase() === 'br') {
-                        // <br>タグはそのまま<br>要素として挿入
-                        animatedTextElement.appendChild(document.createElement('br'));
+                        const brPlaceholder = document.createElement('span'); // <br>もspanでラップして高さを確保
+                        brPlaceholder.innerHTML = '<br>';
+                        brPlaceholder.classList.add('br-placeholder-layout');
+                        tempLayoutDiv.appendChild(brPlaceholder);
                     } else {
                         // その他のタグがあれば、その子ノードを再帰的に処理
-                        Array.from(node.childNodes).forEach(processNodeForInitialLayout);
+                        Array.from(node.childNodes).forEach(parseAndInsertPlaceholders);
                     }
                 }
             };
+            
+            const initialDummyDiv = document.createElement('div');
+            initialDummyDiv.innerHTML = initialTextContent;
+            Array.from(initialDummyDiv.childNodes).forEach(parseAndInsertPlaceholders);
 
-            // 全体のノードを処理
-            Array.from(tempDiv.childNodes).forEach(processNodeForInitialLayout);
 
-            function appendCharSpanForLayout(char, isNonCollapsible) {
+            function appendPlaceholderSpan(char, isNonCollapsible) {
                 const span = document.createElement('span');
                 span.innerHTML = char === ' ' ? '&nbsp;' : char;
-                span.classList.add('char-span'); // 通常フローで配置
+                span.classList.add('char-placeholder-layout');
                 if (isNonCollapsible) {
-                    span.classList.add('non-collapsible-temp'); // 一時的にマーク
+                    span.classList.add('non-collapsible-temp');
                 }
-                animatedTextElement.appendChild(span);
+                tempLayoutDiv.appendChild(span);
             }
 
-            // STEP 2: ブラウザが初期レイアウトを完了するのを待つ
-            // レイアウトが確定した後に位置情報を取得する
-            setTimeout(() => {
-                const charElementsInLayout = animatedTextElement.querySelectorAll('.char-span, br'); // spanとbrの両方を取得
-                const textWrapperRect = animatedTextElement.getBoundingClientRect(); // text-wrapperの絶対位置
+            // STEP 2: ブラウザが初期レイアウトを完了するのを待つ (文字のずれ防止)
+            // requestAnimationFrame と setTimeout の組み合わせで、確実に描画を待つ
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const allPlaceholders = tempLayoutDiv.querySelectorAll('.char-placeholder-layout, .br-placeholder-layout');
+                    const textWrapperRect = animatedTextElement.getBoundingClientRect();
 
-                let charPositions = [];
-                charElementsInLayout.forEach((node) => {
-                    const rect = node.getBoundingClientRect();
-                    const isNonCollapsible = node.classList ? node.classList.contains('non-collapsible-temp') : false;
-                    const isBr = node.tagName.toLowerCase() === 'br';
-
-                    if (isBr) {
-                         // <br>の位置も保持するが、落下アニメーションの対象にはしない
-                         charPositions.push({
-                            type: 'br',
-                            rect: rect
-                        });
-                    } else {
-                        charPositions.push({
-                            type: 'char',
-                            elementContent: node.innerHTML, // &nbsp;などを維持
-                            textContent: node.textContent, // pure text
-                            isNonCollapsible: isNonCollapsible,
-                            rect: rect
-                        });
-                    }
-                });
-
-                // 初期レイアウト用のDOMをクリア
-                animatedTextElement.innerHTML = '';
-
-                // STEP 3: 取得した位置情報を使って、各文字を absolute 配置に再生成
-                charPositions.forEach((data) => {
-                    if (data.type === 'br') {
-                        // <br>タグはそのまま<br>要素としてabsolute配置
-                        const brElement = document.createElement('br');
-                        // <br>はそのままabsoluteにするとレイアウトが崩れる可能性があるため、
-                        // spanでラップし、高さを確保してabsoluteにする
-                        const span = document.createElement('span');
-                        span.innerHTML = '<br>'; // <br>をspanの中に入れる
-                        span.classList.add('fixed-char', 'absolute-positioned'); // 崩れない文字としてabsolute化
-                        span.style.left = `${data.rect.left - textWrapperRect.left}px`;
-                        span.style.top = `${data.rect.top - textWrapperRect.top}px`;
-                        span.style.width = `${data.rect.width}px`; // 幅も確保
-                        span.style.height = `${data.rect.height}px`; // 高さも確保
-                        animatedTextElement.appendChild(span);
-
-                    } else { // 文字の場合
-                        const span = document.createElement('span');
-                        span.innerHTML = data.elementContent; // &nbsp;などを維持
-                        span.classList.add('char-span', 'absolute-positioned'); // absolute化するためのクラスを追加
+                    allPlaceholders.forEach(node => {
+                        const rect = node.getBoundingClientRect();
+                        const isNonCollapsible = node.classList.contains('non-collapsible-temp');
+                        const isBr = node.classList.contains('br-placeholder-layout');
                         
-                        // text-wrapper内の相対位置を設定
-                        span.style.left = `${data.rect.left - textWrapperRect.left}px`;
-                        span.style.top = `${data.rect.top - textWrapperRect.top}px`;
-                        span.style.width = `${data.rect.width}px`; // 幅も正確に設定
-                        span.style.height = `${data.rect.height}px`; // 高さも正確に設定
+                        initialCharPositions.push({
+                            content: node.innerHTML, // &nbsp;や<br>を保持
+                            textContent: node.textContent, // 純粋なテキスト
+                            isNonCollapsible: isNonCollapsible,
+                            isBr: isBr,
+                            left: rect.left - textWrapperRect.left,
+                            top: rect.top - textWrapperRect.top,
+                            width: rect.width,
+                            height: rect.height
+                        });
+                    });
+
+                    // 初期レイアウト用のDOMを完全に削除
+                    animatedTextElement.innerHTML = '';
+
+                    let fixedCharDataForStoryteller = []; // Storytellerの文字情報のみを格納
+
+                    // STEP 3: 取得した位置情報を使って、アニメーション用の文字を absolute 配置に再生成
+                    initialCharPositions.forEach((data, index) => {
+                        const span = document.createElement('span');
+                        span.innerHTML = data.content; // <br>や&nbsp;もそのまま
+                        span.classList.add('animated-char');
+                        
+                        // 正確な位置に配置
+                        span.style.left = `${data.left}px`;
+                        span.style.top = `${data.top}px`;
+                        span.style.width = `${data.width}px`; // 幅も設定
+                        span.style.height = `${data.height}px`; // 高さも設定
 
                         // "Storyteller"の文字、または**でマークされた文字を固定
-                        if (data.isNonCollapsible || (targetWordIndex < targetWord.length && data.textContent.toLowerCase() === targetWord[targetWordIndex].toLowerCase())) {
+                        if (data.isBr || data.isNonCollapsible || (data.textContent.trim().length > 0 && targetWordIndex < targetWord.length && data.textContent.toLowerCase() === targetWord[targetWordIndex].toLowerCase())) {
                             span.classList.add('fixed-char');
-                            // fixedCharDataは、最終的に"Storyteller"を形成する文字のみを格納
-                            if (!data.isNonCollapsible || data.textContent.toLowerCase() === targetWord[targetWordIndex].toLowerCase()) {
-                                fixedCharData.push({ element: span, char: data.textContent, initialRect: data.rect });
-                                if (!data.isNonCollapsible) {
-                                    targetWordIndex++;
-                                }
+                            // Storytellerの文字のみをfixedCharDataForStorytellerに格納
+                            if (!data.isBr && !data.isNonCollapsible && data.textContent.trim().length > 0 && data.textContent.toLowerCase() === targetWord[targetWordIndex].toLowerCase()) {
+                                fixedCharDataForStoryteller.push({ element: span, char: data.textContent, initialRect: data });
+                                targetWordIndex++;
+                            } else if (data.isNonCollapsible && data.textContent.toLowerCase() === targetWord[targetWordIndex].toLowerCase()){
+                                // **で囲まれていてかつStorytellerの一部である場合も追加
+                                fixedCharDataForStoryteller.push({ element: span, char: data.textContent, initialRect: data });
+                                targetWordIndex++;
                             }
                         } else {
                             span.classList.add('falling-char');
                         }
                         animatedTextElement.appendChild(span);
-                    }
-                });
-
-                // アニメーションの開始ロジック
-                const startDelay = 3000; // 3秒 = 3000ミリ秒
-                const perCharFallDelay = 0.005;
-                const fallAnimationDuration = 2;
-                const assembleAndGrowDuration = 1.5;
-
-                setTimeout(() => {
-                    const fallingChars = document.querySelectorAll('.falling-char');
-                    fallingChars.forEach((charElement, charIndex) => {
-                        const randX = (Math.random() - 0.5) * window.innerWidth * 2;
-                        const randY = Math.random() * window.innerHeight * 2;
-                        const randRot = Math.random() * 1080 - 540;
-                        charElement.style.setProperty('--randX', `${randX}px`);
-                        charElement.style.setProperty('--randY', `${randY}px`);
-                        charElement.style.setProperty('--randRot', `${randRot}deg`);
-
-                        charElement.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
-                        charElement.style.animationDelay = `${perCharFallDelay * charIndex}s`;
                     });
 
-                    const longestFallingAnimationEndTime = (fallingChars.length > 0 ? perCharFallDelay * (fallingChars.length - 1) : 0) * 1000 + fallAnimationDuration * 1000;
+                    // アニメーションの開始ロジック
+                    const startDelay = 3000; // 3秒 = 3000ミリ秒
+                    const perCharFallDelay = 0.005;
+                    const fallAnimationDuration = 2;
+                    const assembleAndGrowDuration = 1.5;
 
                     setTimeout(() => {
-                        animatedTextElement.style.opacity = '0'; // 崩れた文章をフェードアウト
-                        
-                        // fixedCharData内の要素をremainingTextContainerに移動し、アニメーションを開始
-                        fixedCharData.forEach((data, index) => {
-                            const originalRect = data.initialRect;
+                        const fallingChars = document.querySelectorAll('.falling-char');
+                        fallingChars.forEach((charElement, charIndex) => {
+                            const randX = (Math.random() - 0.5) * window.innerWidth * 2;
+                            const randY = Math.random() * window.innerHeight * 2;
+                            const randRot = Math.random() * 1080 - 540;
+                            charElement.style.setProperty('--randX', `${randX}px`);
+                            charElement.style.setProperty('--randY', `${randY}px`);
+                            charElement.style.setProperty('--randRot', `${randRot}deg`);
 
-                            const span = document.createElement('span');
-                            span.classList.add('remaining-char');
-                            span.textContent = data.char; // "Storyteller"の文字を直接セット
-
-                            const remainingTextContainerRect = remainingTextContainer.getBoundingClientRect();
-                            const relativeX = (originalRect.left + originalRect.width / 2) - (remainingTextContainerRect.left + remainingTextContainerRect.width / 2);
-                            const relativeY = (originalRect.top + originalRect.height / 2) - (remainingTextContainerRect.top + remainingTextContainerRect.height / 2);
-
-                            span.style.setProperty('--x', `${relativeX}px`);
-                            span.style.setProperty('--y', `${relativeY}px`);
-                            span.style.setProperty('--rot', `${Math.random() * 180 - 90}deg`);
-
-                            span.style.opacity = '0';
-                            span.style.transform = `translate(${relativeX}px, ${relativeY}px) scale(0) rotate(${Math.random() * 180 - 90}deg)`;
-
-                            span.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards cubic-bezier(0.25, 0.1, 0.25, 1)`;
-                            span.style.animationDelay = `${index * 0.1}s`;
-
-                            remainingTextContainer.appendChild(span);
+                            charElement.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
+                            charElement.style.animationDelay = `${perCharFallDelay * charIndex}s`;
                         });
-                        remainingTextContainer.classList.add('show');
 
-                    }, longestFallingAnimationEndTime);
-                }, startDelay);
-            }, 100); // DOMレンダリングを待つための短い遅延
+                        const longestFallingAnimationEndTime = (fallingChars.length > 0 ? perCharFallDelay * (fallingChars.length - 1) : 0) * 1000 + fallAnimationDuration * 1000;
+
+                        setTimeout(() => {
+                            animatedTextElement.style.opacity = '0'; // 崩れた文章をフェードアウト
+                            
+                            // Storytellerの文字を集めるアニメーションを開始
+                            fixedCharDataForStoryteller.forEach((data, index) => {
+                                // ここで新しい.remaining-char要素を生成し、fixedCharDataの初期位置を参考にアニメーション
+                                const span = document.createElement('span');
+                                span.classList.add('remaining-char');
+                                span.textContent = data.char;
+
+                                // remainingTextContainerの中心からの相対位置に変換
+                                const remainingTextContainerRect = remainingTextContainer.getBoundingClientRect();
+                                const relativeX = (data.initialRect.left + data.initialRect.width / 2) - (remainingTextContainerRect.left + remainingTextContainerRect.width / 2);
+                                const relativeY = (data.initialRect.top + data.initialRect.height / 2) - (remainingTextContainerRect.top + remainingTextContainerRect.height / 2);
+
+                                span.style.setProperty('--x', `${relativeX}px`);
+                                span.style.setProperty('--y', `${relativeY}px`);
+                                span.style.setProperty('--rot', `${Math.random() * 180 - 90}deg`);
+
+                                span.style.opacity = '0';
+                                span.style.transform = `translate(${relativeX}px, ${relativeY}px) scale(0) rotate(${Math.random() * 180 - 90}deg)`;
+
+                                span.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards cubic-bezier(0.25, 0.1, 0.25, 1)`;
+                                span.style.animationDelay = `${index * 0.1}s`;
+
+                                remainingTextContainer.appendChild(span);
+
+                                // 崩壊アニメーションの対象ではないfixed-charはそのままDOMに残しておくが、
+                                // animatedTextElementがopacity:0になるので見えなくなる
+                            });
+                            remainingTextContainer.classList.add('show');
+
+                        }, longestFallingAnimationEndTime);
+                    }, startDelay);
+                });
+            });
         });
     </script>
 </body>
