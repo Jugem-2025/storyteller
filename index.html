@@ -33,84 +33,74 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            display: flex;
+            display: flex; /* 中央配置のためにflexを使用 */
             justify-content: center;
             align-items: center;
             padding: 20px;
             box-sizing: border-box;
-            overflow: hidden;
+            overflow: hidden; /* 子要素のはみ出しを隠す */
         }
 
         .text-wrapper {
-            position: absolute; /* 親コンテナの中央に配置 */
+            position: relative; /* 文字のabsolute配置の基準とするためrelative */
             width: 80vw;
             max-width: 1200px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%); /* 中央寄せ */
-            line-height: 1.2;
-            letter-spacing: 0.08em;
-            font-size: 14px;
-            opacity: 1;
-            pointer-events: none;
-            text-align: center;
-            transition: opacity 0.5s ease-out;
-            /* 初期は文字を直接含むため、flex関連は不要 */
+            /* line-heightなどのテキストスタイル */
+            line-height: 1.2; /* 行間をさらに狭く調整 */
+            letter-spacing: 0.08em; /* 文字間隔は維持 */
+            font-size: 14px; /* フォントサイズは維持 */
+            opacity: 1; /* 初期は表示 */
+            pointer-events: none; /* マウスイベントを受け付けない */
+            text-align: center; /* 中央揃え */
+            transition: opacity 0.5s ease-out; /* 崩れた後のフェードアウト用 */
+            /* 初期は通常フローでテキストを表示するため、flex関連は削除 */
         }
 
-        /* 文字を個別のspanに分ける前の、HTML本来のテキストフローをシミュレートする隠し要素 */
-        /* これにより、正確な文字の位置情報を取得する */
-        #initial-layout-helper {
-            position: absolute; /* text-wrapper と同じ位置に配置 */
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            visibility: hidden; /* 見えないがレイアウトには参加 */
-            white-space: pre-wrap; /* 連続する空白と改行を保持 */
-            line-height: inherit; /* 親から継承 */
-            letter-spacing: inherit; /* 親から継承 */
-            font-size: inherit; /* 親から継承 */
-            text-align: inherit; /* 親から継承 */
-        }
-        #initial-layout-helper span {
-            display: inline-block; /* 各文字をインラインブロックとして配置 */
-            white-space: pre; /* 個々の文字の空白を保持 */
-            /* span自体のフォントスタイルは親から継承される */
-        }
-        #initial-layout-helper br {
-            display: block; /* brタグはブロック要素 */
-        }
-
-
-        /* アニメーション用の文字要素のベーススタイル */
-        .animated-char {
-            display: inline-block; /* 基本はインラインブロック */
-            position: absolute; /* JSで位置確定後にabsoluteにする */
-            opacity: 1;
-            transform: translate(0, 0) rotate(0deg); /* 初期状態 */
-            z-index: 2; /* 崩れる文字が手前になるように */
-            will-change: transform, opacity; /* アニメーションのパフォーマンス最適化 */
-            /* フォントスタイルは text-wrapper から継承 */
+        /* 文字ごとのspan要素のベーススタイル */
+        .char-span {
+            display: inline-block; /* 通常フローで文字を並べる */
+            white-space: pre; /* 空白と改行を保持 */
+            /* 必要に応じてline-heightやletter-spacingを個別に調整できるが、基本はtext-wrapperで継承 */
         }
         
+        .char-span.absolute-positioned { /* 位置確定後にabsoluteにするためのクラス */
+            position: absolute;
+            /* transform を使って正確な位置に配置する */
+            top: 0; /* JSで計算したY座標をセット */
+            left: 0; /* JSで計算したX座標をセット */
+            /* transform: translate(var(--x-pos), var(--y-pos)); */ /* JSで計算した絶対座標 */
+            /* transformのtranslateは、要素自身の位置を基準とするため、
+               top/leftと併用する場合は注意が必要。ここではleft/topで直接指定する */
+        }
+
         /* 崩れ落ちる文字 */
         .falling-char {
+            /* .char-spanのスタイルを継承 */
+            opacity: 1; /* 初期は不透明 */
+            transform: translateY(0) rotate(0deg); /* 初期状態 */
             animation-timing-function: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 2; /* 崩れる文字が手前になるように */
+            will-change: transform, opacity; /* アニメーションのパフォーマンス最適化 */
         }
 
-        /* その場に残る文字 (Storyteller以外の**文字、<br>を含む) */
+        /* その場に残る文字 (初期状態) */
         .fixed-char {
+            /* .char-spanのスタイルを継承 */
+            opacity: 1; /* 初期は不透明 */
+            transform: translateY(0) rotate(0deg); /* 初期状態 */
             z-index: 3; /* 崩れる文字より手前 */
+            pointer-events: none;
+            will-change: transform, opacity;
         }
 
-        @keyframes fall-from-center {
+        @keyframes fall-from-center { /* 中心から「ザーっと」広がりながら落下するアニメーション */
             0% {
                 opacity: 1;
-                transform: translate(0, 0) rotate(0deg);
+                transform: translate(0, 0) rotate(0deg); /* 最初の位置 */
             }
             100% {
                 opacity: 0;
+                /* absolute化された位置からの相対移動 */
                 transform: translate(var(--randX, 0px), var(--randY, 0px)) rotate(var(--randRot, 0deg));
             }
         }
@@ -119,17 +109,17 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%); /* 中央に配置 */
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Storyteller', cursive;
-            font-size: 0;
+            font-size: 0; /* 初期サイズを0 */
             color: #000000;
             white-space: nowrap;
-            z-index: 5;
-            opacity: 0;
-            pointer-events: none;
+            z-index: 5; /* 最前面に表示 */
+            opacity: 0; /* 初期状態は完全に透明 */
+            pointer-events: none; /* マウスイベントを受け付けない */
         }
 
         .remaining-char {
@@ -138,8 +128,17 @@
             transform: translate(0, 0) scale(1) rotate(0deg);
             position: relative; /* その場に残るためrelative */
             font-size: 10px; /* 崩れる文字と同じ初期サイズ */
-            z-index: 4;
+            z-index: 4; /* remaining-text-containerよりさらに手前 */
             will-change: transform, opacity, font-size;
+        }
+
+        /* アニメーション後の状態 */
+        .remaining-text-container.show {
+            opacity: 1; /* コンテナ全体を不透明にする */
+        }
+
+        .remaining-text-container.show .remaining-char {
+            animation: assembleAndGrow 1.5s forwards cubic-bezier(0.25, 0.1, 0.25, 1); /* ヌルッと動くカーブ */
         }
 
         @keyframes assembleAndGrow {
@@ -161,7 +160,40 @@
 <body>
     <div class="container">
         <div class="text-wrapper" id="animatedText">
-            </div>
+            FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+            GRAFFITI ARTIST FENG SHUI MASTER
+            PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+            DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+            MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+            SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+            COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+            GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+            ENGLISH TEACHER MATCHMAKER HOMELESS
+            HOMELESS STREET SINGER / STORYTELLER MONK
+            STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
+            FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+            GRAFFITI ARTIST FENG SHUI MASTER
+            PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+            DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+            MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+            SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+            COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+            GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+            ENGLISH TEACHER MATCHMAKER HOMELESS
+            HOMELESS STREET SINGER / STORYTELLER MONK
+            STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
+            FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+            GRAFFITI ARTIST FENG SHUI MASTER
+            PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+            DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+            MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+            SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+            COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+            GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+            ENGLISH TEACHER MATCHMAKER HOMELESS
+            HOMELESS STREET SINGER / STORYTELLER MONK
+            STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
+        </div>
         <div class="remaining-text-container" id="remainingText">
             </div>
     </div>
@@ -171,225 +203,192 @@
             const animatedTextElement = document.getElementById('animatedText');
             const remainingTextContainer = document.getElementById('remainingText');
 
-            // ユーザーがHTMLに記述した元の文章を取得（ここでは仮の文字列を使用）
-            // 実際のコンテンツはここに入力してください。
-            // **Storyteller** のように**で囲むと崩れません。
-            const initialRawTextContent = `FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK **Storyteller** / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
-GRAFFITI ARTIST FENG SHUI MASTER
-PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
-DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
-MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
-SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
-COMMUNITY MEMBER / ENGLISH TEACHER BARBER
-GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
-ENGLISH TEACHER MATCHMAKER HOMELESS
-HOMELESS STREET SINGER / STORYTELLER MONK
-STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
-FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK **Storyteller** / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
-GRAFFITI ARTIST FENG SHUI MASTER
-PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
-DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
-MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
-SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
-COMMUNITY MEMBER / ENGLISH TEACHER BARBER
-GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
-ENGLISH TEACHER MATCHMAKER HOMELESS
-HOMELESS STREET SINGER / STORYTELLER MONK
-STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
-FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK **Storyteller** / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
-GRAFFITI ARTIST FENG SHUI MASTER
-PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
-DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
-MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
-SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
-COMMUNITY MEMBER / ENGLISH TEACHER BARBER
-GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
-ENGLISH TEACHER MATCHMAKER HOMELESS
-HOMELESS STREET SINGER / STORYTELLER MONK
-STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ここに実際に表示したい文章を貼り付けてください
-
+            const initialTextContent = animatedTextElement.innerHTML;
             const targetWord = "Storyteller";
-            let initialCharPositions = []; // 各文字の初期位置情報を格納
-            let fixedCharDataForStoryteller = []; // Storytellerの文字情報のみを格納
+            let fixedCharData = [];
+            let targetWordIndex = 0;
 
-            // STEP 0: text-wrapperが初期状態でブラウザの中央に配置されることを保証
-            // CSSで position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); は既に設定済み
+            // 初期化: text-wrapperの中身を空にする
+            animatedTextElement.innerHTML = '';
 
-            // STEP 1: 初期レイアウト計算用のヘルパー要素を text-wrapper 内に一時的に配置
-            const layoutHelper = document.createElement('div');
-            layoutHelper.id = 'initial-layout-helper';
-            // text-wrapperに子要素を追加する前に、text-wrapperのスタイルが適用されていることを確認
-            // animatedTextElement.appendChild(layoutHelper); // これを早くしすぎるとtext-wrapperのRectが不安定になる可能性
+            // STEP 1: HTMLコンテンツを解析し、各文字を通常フローで配置した<span>要素として挿入
+            // <br>タグはそのまま<br>要素として挿入し、その位置を取得する
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = initialTextContent;
 
-            // ダミー要素を介して、ユーザーが記述したテキストをHTML要素に変換
-            const dummyDiv = document.createElement('div');
-            // innerHTMLを使うと、改行が<br>に変換される
-            // または、テキストノードと<br>要素を明示的に処理する
-            const lines = initialRawTextContent.split('\n');
-            lines.forEach((line, lineIndex) => {
-                const nonCollapsiblePattern = /\*\*(.*?)\*\*/g;
-                let lastIndex = 0;
-                let match;
+            const processNodeForInitialLayout = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.textContent;
+                    const nonCollapsiblePattern = /\*\*(.*?)\*\*/g;
+                    let lastIndex = 0;
+                    let match;
 
-                while ((match = nonCollapsiblePattern.exec(line)) !== null) {
-                    // 崩れる部分
-                    for (let i = lastIndex; i < match.index; i++) {
-                        const char = line[i];
-                        const span = document.createElement('span');
-                        span.textContent = char === ' ' ? '\u00A0' : char; // &nbsp;のUnicodeエスケープ
-                        layoutHelper.appendChild(span);
+                    while ((match = nonCollapsiblePattern.exec(text)) !== null) {
+                        for (let i = lastIndex; i < match.index; i++) {
+                            appendCharSpanForLayout(text[i], false);
+                        }
+                        for (let i = 0; i < match[1].length; i++) {
+                            appendCharSpanForLayout(match[1][i], true);
+                        }
+                        lastIndex = nonCollapsiblePattern.lastIndex;
                     }
-                    // 崩れない部分
-                    for (let i = 0; i < match[1].length; i++) {
-                        const char = match[1][i];
-                        const span = document.createElement('span');
-                        span.textContent = char === ' ' ? '\u00A0' : char;
-                        span.classList.add('non-collapsible-temp'); // 一時的にマーク
-                        layoutHelper.appendChild(span);
+                    for (let i = lastIndex; i < text.length; i++) {
+                        appendCharSpanForLayout(text[i], false);
                     }
-                    lastIndex = nonCollapsiblePattern.lastIndex;
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (node.tagName.toLowerCase() === 'br') {
+                        // <br>タグはそのまま<br>要素として挿入
+                        animatedTextElement.appendChild(document.createElement('br'));
+                    } else {
+                        // その他のタグがあれば、その子ノードを再帰的に処理
+                        Array.from(node.childNodes).forEach(processNodeForInitialLayout);
+                    }
                 }
-                // 残りの崩れる部分
-                for (let i = lastIndex; i < line.length; i++) {
-                    const char = line[i];
-                    const span = document.createElement('span');
-                    span.textContent = char === ' ' ? '\u00A0' : char;
-                    layoutHelper.appendChild(span);
+            };
+
+            // 全体のノードを処理
+            Array.from(tempDiv.childNodes).forEach(processNodeForInitialLayout);
+
+            function appendCharSpanForLayout(char, isNonCollapsible) {
+                const span = document.createElement('span');
+                span.innerHTML = char === ' ' ? '&nbsp;' : char;
+                span.classList.add('char-span'); // 通常フローで配置
+                if (isNonCollapsible) {
+                    span.classList.add('non-collapsible-temp'); // 一時的にマーク
                 }
+                animatedTextElement.appendChild(span);
+            }
 
-                if (lineIndex < lines.length - 1) { // 最後の行以外は改行を追加
-                    layoutHelper.appendChild(document.createElement('br'));
-                }
-            });
+            // STEP 2: ブラウザが初期レイアウトを完了するのを待つ
+            // レイアウトが確定した後に位置情報を取得する
+            setTimeout(() => {
+                const charElementsInLayout = animatedTextElement.querySelectorAll('.char-span, br'); // spanとbrの両方を取得
+                const textWrapperRect = animatedTextElement.getBoundingClientRect(); // text-wrapperの絶対位置
 
-            // レイアウトヘルパーをtext-wrapperに追加
-            animatedTextElement.appendChild(layoutHelper);
+                let charPositions = [];
+                charElementsInLayout.forEach((node) => {
+                    const rect = node.getBoundingClientRect();
+                    const isNonCollapsible = node.classList ? node.classList.contains('non-collapsible-temp') : false;
+                    const isBr = node.tagName.toLowerCase() === 'br';
 
-
-            // STEP 2: ブラウザが初期レイアウトを完了するのを待つ (文字のずれ防止の核心部分)
-            // rAFを二重にすることで、DOM変更→レンダリング→レイアウト計算の完了を待つ
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    // ここで layoutHelper の子要素から正確な位置情報を取得
-                    const layoutChildren = layoutHelper.querySelectorAll('span, br');
-                    const textWrapperRect = animatedTextElement.getBoundingClientRect(); // text-wrapper自体の絶対位置
-
-                    layoutChildren.forEach(node => {
-                        const rect = node.getBoundingClientRect();
-                        const isBr = node.tagName.toLowerCase() === 'br';
-                        const isNonCollapsible = node.classList ? node.classList.contains('non-collapsible-temp') : false;
-
-                        initialCharPositions.push({
-                            content: isBr ? '<br>' : (node.textContent === '\u00A0' ? '\u00A0' : node.textContent), // &nbsp;はUnicodeに変換
-                            textContent: node.textContent, // 純粋なテキスト
-                            isNonCollapsible: isNonCollapsible,
-                            isBr: isBr,
-                            left: rect.left - textWrapperRect.left, // text-wrapperを基準とした相対位置
-                            top: rect.top - textWrapperRect.top,
-                            width: rect.width,
-                            height: rect.height
+                    if (isBr) {
+                         // <br>の位置も保持するが、落下アニメーションの対象にはしない
+                         charPositions.push({
+                            type: 'br',
+                            rect: rect
                         });
-                    });
+                    } else {
+                        charPositions.push({
+                            type: 'char',
+                            elementContent: node.innerHTML, // &nbsp;などを維持
+                            textContent: node.textContent, // pure text
+                            isNonCollapsible: isNonCollapsible,
+                            rect: rect
+                        });
+                    }
+                });
 
-                    // レイアウトヘルパーをDOMから削除
-                    animatedTextElement.removeChild(layoutHelper);
+                // 初期レイアウト用のDOMをクリア
+                animatedTextElement.innerHTML = '';
 
-                    let currentTargetWordIndex = 0; // Storytellerの文字を順に取得するためのインデックス
-
-                    // STEP 3: 取得した位置情報を使って、アニメーション用の文字を absolute 配置に再生成
-                    initialCharPositions.forEach((data) => {
+                // STEP 3: 取得した位置情報を使って、各文字を absolute 配置に再生成
+                charPositions.forEach((data) => {
+                    if (data.type === 'br') {
+                        // <br>タグはそのまま<br>要素としてabsolute配置
+                        const brElement = document.createElement('br');
+                        // <br>はそのままabsoluteにするとレイアウトが崩れる可能性があるため、
+                        // spanでラップし、高さを確保してabsoluteにする
                         const span = document.createElement('span');
-                        span.classList.add('animated-char');
+                        span.innerHTML = '<br>'; // <br>をspanの中に入れる
+                        span.classList.add('fixed-char', 'absolute-positioned'); // 崩れない文字としてabsolute化
+                        span.style.left = `${data.rect.left - textWrapperRect.left}px`;
+                        span.style.top = `${data.rect.top - textWrapperRect.top}px`;
+                        span.style.width = `${data.rect.width}px`; // 幅も確保
+                        span.style.height = `${data.rect.height}px`; // 高さも確保
+                        animatedTextElement.appendChild(span);
+
+                    } else { // 文字の場合
+                        const span = document.createElement('span');
+                        span.innerHTML = data.elementContent; // &nbsp;などを維持
+                        span.classList.add('char-span', 'absolute-positioned'); // absolute化するためのクラスを追加
                         
-                        // <br>タグの場合はHTMLとして挿入、それ以外はtextContent
-                        span.innerHTML = data.content === '<br>' ? '<br>' : (data.content === '\u00A0' ? '&nbsp;' : data.content);
+                        // text-wrapper内の相対位置を設定
+                        span.style.left = `${data.rect.left - textWrapperRect.left}px`;
+                        span.style.top = `${data.rect.top - textWrapperRect.top}px`;
+                        span.style.width = `${data.rect.width}px`; // 幅も正確に設定
+                        span.style.height = `${data.rect.height}px`; // 高さも正確に設定
 
-                        // 正確な位置に配置
-                        span.style.left = `${data.left}px`;
-                        span.style.top = `${data.top}px`;
-                        span.style.width = `${data.width}px`; // 幅も設定
-                        span.style.height = `${data.height}px`; // 高さも設定
-
-                        // fixed-char と falling-char の分類
-                        if (data.isBr || data.isNonCollapsible || (data.textContent.trim().length > 0 && currentTargetWordIndex < targetWord.length && data.textContent.toLowerCase() === targetWord[currentTargetWordIndex].toLowerCase())) {
+                        // "Storyteller"の文字、または**でマークされた文字を固定
+                        if (data.isNonCollapsible || (targetWordIndex < targetWord.length && data.textContent.toLowerCase() === targetWord[targetWordIndex].toLowerCase())) {
                             span.classList.add('fixed-char');
-                            
-                            // Storytellerの文字のみを fixedCharDataForStoryteller に格納
-                            // **で囲まれていないStorytellerの文字、または**で囲まれたStorytellerの文字
-                            if ((!data.isNonCollapsible && data.textContent.trim().length > 0 && currentTargetWordIndex < targetWord.length && data.textContent.toLowerCase() === targetWord[currentTargetWordIndex].toLowerCase()) ||
-                                (data.isNonCollapsible && data.textContent.toLowerCase() === targetWord[currentTargetWordIndex].toLowerCase())) {
-                                
-                                fixedCharDataForStoryteller.push({
-                                    originalElement: span, // 生成したspan要素自体を保持
-                                    char: data.textContent,
-                                    initialRect: data // 初期位置情報も保持
-                                });
-                                currentTargetWordIndex++;
+                            // fixedCharDataは、最終的に"Storyteller"を形成する文字のみを格納
+                            if (!data.isNonCollapsible || data.textContent.toLowerCase() === targetWord[targetWordIndex].toLowerCase()) {
+                                fixedCharData.push({ element: span, char: data.textContent, initialRect: data.rect });
+                                if (!data.isNonCollapsible) {
+                                    targetWordIndex++;
+                                }
                             }
                         } else {
                             span.classList.add('falling-char');
                         }
                         animatedTextElement.appendChild(span);
+                    }
+                });
+
+                // アニメーションの開始ロジック
+                const startDelay = 3000; // 3秒 = 3000ミリ秒
+                const perCharFallDelay = 0.005;
+                const fallAnimationDuration = 2;
+                const assembleAndGrowDuration = 1.5;
+
+                setTimeout(() => {
+                    const fallingChars = document.querySelectorAll('.falling-char');
+                    fallingChars.forEach((charElement, charIndex) => {
+                        const randX = (Math.random() - 0.5) * window.innerWidth * 2;
+                        const randY = Math.random() * window.innerHeight * 2;
+                        const randRot = Math.random() * 1080 - 540;
+                        charElement.style.setProperty('--randX', `${randX}px`);
+                        charElement.style.setProperty('--randY', `${randY}px`);
+                        charElement.style.setProperty('--randRot', `${randRot}deg`);
+
+                        charElement.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
+                        charElement.style.animationDelay = `${perCharFallDelay * charIndex}s`;
                     });
 
-                    // アニメーションの開始ロジック
-                    const startDelay = 3000; // 3秒 = 3000ミリ秒
-                    const perCharFallDelay = 0.005;
-                    const fallAnimationDuration = 2;
-                    const assembleAndGrowDuration = 1.5;
+                    const longestFallingAnimationEndTime = (fallingChars.length > 0 ? perCharFallDelay * (fallingChars.length - 1) : 0) * 1000 + fallAnimationDuration * 1000;
 
                     setTimeout(() => {
-                        const fallingChars = document.querySelectorAll('.falling-char');
-                        fallingChars.forEach((charElement, charIndex) => {
-                            const randX = (Math.random() - 0.5) * window.innerWidth * 2;
-                            const randY = Math.random() * window.innerHeight * 2;
-                            const randRot = Math.random() * 1080 - 540;
-                            charElement.style.setProperty('--randX', `${randX}px`);
-                            charElement.style.setProperty('--randY', `${randY}px`);
-                            charElement.style.setProperty('--randRot', `${randRot}deg`);
+                        animatedTextElement.style.opacity = '0'; // 崩れた文章をフェードアウト
+                        
+                        // fixedCharData内の要素をremainingTextContainerに移動し、アニメーションを開始
+                        fixedCharData.forEach((data, index) => {
+                            const originalRect = data.initialRect;
 
-                            charElement.style.animation = `fall-from-center ${fallAnimationDuration}s forwards`;
-                            charElement.style.animationDelay = `${perCharFallDelay * charIndex}s`;
+                            const span = document.createElement('span');
+                            span.classList.add('remaining-char');
+                            span.textContent = data.char; // "Storyteller"の文字を直接セット
+
+                            const remainingTextContainerRect = remainingTextContainer.getBoundingClientRect();
+                            const relativeX = (originalRect.left + originalRect.width / 2) - (remainingTextContainerRect.left + remainingTextContainerRect.width / 2);
+                            const relativeY = (originalRect.top + originalRect.height / 2) - (remainingTextContainerRect.top + remainingTextContainerRect.height / 2);
+
+                            span.style.setProperty('--x', `${relativeX}px`);
+                            span.style.setProperty('--y', `${relativeY}px`);
+                            span.style.setProperty('--rot', `${Math.random() * 180 - 90}deg`);
+
+                            span.style.opacity = '0';
+                            span.style.transform = `translate(${relativeX}px, ${relativeY}px) scale(0) rotate(${Math.random() * 180 - 90}deg)`;
+
+                            span.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards cubic-bezier(0.25, 0.1, 0.25, 1)`;
+                            span.style.animationDelay = `${index * 0.1}s`;
+
+                            remainingTextContainer.appendChild(span);
                         });
+                        remainingTextContainer.classList.add('show');
 
-                        // 最も遅い落下アニメーションの終了時間を計算
-                        const longestFallingAnimationEndTime = (fallingChars.length > 0 ? perCharFallDelay * (fallingChars.length - 1) : 0) * 1000 + fallAnimationDuration * 1000;
-
-                        setTimeout(() => {
-                            animatedTextElement.style.opacity = '0'; // 崩れた文章をフェードアウト
-                            
-                            // Storytellerの文字を集めるアニメーションを開始
-                            fixedCharDataForStoryteller.forEach((data, index) => {
-                                // ここで新しい.remaining-char要素を生成
-                                const span = document.createElement('span');
-                                span.classList.add('remaining-char');
-                                span.textContent = data.char;
-
-                                // remainingTextContainerの中心からの相対位置に変換
-                                const remainingTextContainerRect = remainingTextContainer.getBoundingClientRect();
-                                const relativeX = (data.initialRect.left + data.initialRect.width / 2) - (remainingTextContainerRect.left + remainingTextContainerRect.width / 2);
-                                const relativeY = (data.initialRect.top + data.initialRect.height / 2) - (remainingTextContainerRect.top + remainingTextContainerRect.height / 2);
-
-                                span.style.setProperty('--x', `${relativeX}px`);
-                                span.style.setProperty('--y', `${relativeY}px`);
-                                span.style.setProperty('--rot', `${Math.random() * 180 - 90}deg`);
-
-                                span.style.opacity = '0'; // 初期は透明
-                                span.style.transform = `translate(${relativeX}px, ${relativeY}px) scale(0) rotate(${Math.random() * 180 - 90}deg)`;
-
-                                span.style.animation = `assembleAndGrow ${assembleAndGrowDuration}s forwards cubic-bezier(0.25, 0.1, 0.25, 1)`;
-                                span.style.animationDelay = `${index * 0.1}s`;
-
-                                remainingTextContainer.appendChild(span);
-
-                                // 元のfixed-char要素はanimatedTextElementのopacity:0で非表示になる
-                            });
-                            remainingTextContainer.classList.add('show');
-
-                        }, longestFallingAnimationEndTime);
-                    }, startDelay);
-                });
-            });
+                    }, longestFallingAnimationEndTime);
+                }, startDelay);
+            }, 100); // DOMレンダリングを待つための短い遅延
         });
     </script>
 </body>
