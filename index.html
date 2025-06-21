@@ -9,7 +9,7 @@
         body {
             background-color: #E81F27;
             font-family: 'Oswald', sans-serif;
-            color: white;
+            color: black; /* 文字色を黒に設定 */
             margin: 0;
             overflow: hidden; /* 崩れる文字がはみ出さないように */
             display: flex;
@@ -48,17 +48,17 @@
             transition: opacity 0.5s ease-out; /* フェードアウト用 */
             pointer-events: none; /* クリック不可に */
             user-select: none;
+            color: black; /* 崩れる文字の色も黒に */
         }
 
+        /* remaining-charはfinal-storyteller内のspanに適用 */
         .remaining-char {
-            position: relative; /* 中央配置のためにrelative */
-            display: inline-block;
+            display: inline-block; /* flex itemとして機能させるため */
+            transform: scale(1); /* 初期スケール */
             opacity: 1;
-            transform: scale(1);
-            transition: transform 2s ease-in-out; /* 拡大アニメーション */
+            font-size: inherit; /* 親からフォントサイズを継承 */
             white-space: pre; /* 空白が連続してもそのまま表示されるように */
-            font-size: inherit; /* 初期フォントサイズを継承 */
-            z-index: 15; /* storytelerが上に表示されるように */
+            color: black; /* 残る文字の色も黒に */
         }
 
         #pile-container {
@@ -74,7 +74,7 @@
 
         .piled-char {
             position: absolute;
-            color: white;
+            color: black; /* 積もった文字の色も黒に */
             opacity: 1;
             transition: opacity 2s ease-out; /* 積もった文字のフェードアウト */
             pointer-events: none;
@@ -90,6 +90,20 @@
             opacity: 0; /* 最初は非表示 */
             z-index: 20;
             pointer-events: none;
+            display: flex; /* 文字を横に並べるためにflexboxを使用 */
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5vw; /* 初期サイズは他の文字に合わせる */
+            /* アニメーションプロパティ */
+            transition: transform 2s ease-in-out, letter-spacing 2s ease-in-out;
+        }
+
+        /* 拡大と文字間隔調整のためのクラス */
+        #final-storyteller.animate-final {
+            transform: translate(-50%, -50%) scale(3);
+            letter-spacing: 0.15em; /* 拡大に合わせて文字間隔を調整 */
+            /* 必要であれば、さらに文字全体の幅を考慮した調整も可能 */
+            /* padding: 0 calc(2.5vw * 10 * 3 * 0.15 / 2); /* 仮の調整 */
         }
     </style>
 </head>
@@ -140,21 +154,17 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
         const targetChars = ['s', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r'];
         let charElements = [];
         let remainingCharIndices = [];
-        let foundCharCount = 0;
+        let completedFallingChars = 0;
+        let totalFallingChars = 0;
 
         // 文字をspanでラップしてDOMに追加
         function setupInitialText() {
             let tempHTML = '';
             for (let i = 0; i < initialText.length; i++) {
                 const char = initialText[i];
-                // 空白文字の場合は特別な処理
                 if (char === ' ' || char === '\n') {
                     tempHTML += `<span class="char-wrapper" data-char="${char}">`;
-                    if (char === ' ') {
-                        tempHTML += '&nbsp;'; // 半角スペース
-                    } else {
-                        tempHTML += '<br>'; // 改行
-                    }
+                    tempHTML += (char === ' ') ? '&nbsp;' : '<br>';
                     tempHTML += '</span>';
                 } else {
                     tempHTML += `<span class="char-wrapper" data-char="${char}">${char}</span>`;
@@ -163,34 +173,50 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             initialTextContainer.innerHTML = tempHTML;
             charElements = Array.from(initialTextContainer.querySelectorAll('.char-wrapper'));
 
-            // 残す文字のインデックスを決定
+            // 残す文字のインデックスを決定（バラけた場所で）
             let tempRemainingIndices = [];
-            let startIndex = 0;
+            let lastUsedIndex = -1; // 最後に選択されたインデックスを記録
+
             targetChars.forEach(targetChar => {
-                let found = false;
-                for (let i = startIndex; i < charElements.length; i++) {
-                    const charElement = charElements[i];
-                    const char = charElement.dataset.char.toLowerCase();
-                    // 空白文字は対象外、かつターゲット文字と一致するか
-                    if (char !== ' ' && char !== '\n' && char === targetChar) {
-                        if (!tempRemainingIndices.includes(i)) { // 連続しないように既に選ばれていないか確認
-                            tempRemainingIndices.push(i);
-                            startIndex = i + 1; // 次の検索開始位置を更新
-                            found = true;
-                            break;
-                        }
+                let availableIndices = [];
+                // ターゲット文字と一致し、かつまだ選ばれていない文字を探す
+                for (let i = 0; i < charElements.length; i++) {
+                    if (!tempRemainingIndices.includes(i) && charElements[i].dataset.char.toLowerCase() === targetChar) {
+                        availableIndices.push(i);
                     }
                 }
-                if (!found) {
-                    // もし見つからなかった場合、最初から探すなどして柔軟に対応するか、エラーとするか
-                    // 今回は、見つからない場合は処理をスキップし、残る文字が少なくなることを許容
-                    console.warn(`Target character '${targetChar}' not found or cannot be placed non-continuously.`);
+
+                if (availableIndices.length > 0) {
+                    // 既に選ばれたインデックスと最も距離があるものを優先
+                    let bestIndex = -1;
+                    let maxMinDistance = -1;
+
+                    for (const currentIdx of availableIndices) {
+                        if (tempRemainingIndices.length === 0) {
+                            // 最初の文字の場合、どこでも良いのでとりあえず選ぶ
+                            bestIndex = currentIdx;
+                            break;
+                        } else {
+                            let minDistance = Infinity;
+                            for (const selectedIdx of tempRemainingIndices) {
+                                minDistance = Math.min(minDistance, Math.abs(currentIdx - selectedIdx));
+                            }
+                            if (minDistance > maxMinDistance) {
+                                maxMinDistance = minDistance;
+                                bestIndex = currentIdx;
+                            }
+                        }
+                    }
+                    if (bestIndex !== -1) {
+                        tempRemainingIndices.push(bestIndex);
+                    } else {
+                        console.warn(`Target character '${targetChar}' could not be placed non-continuously.`);
+                    }
+                } else {
+                    console.warn(`Target character '${targetChar}' not found in text.`);
                 }
             });
-            // 残す文字のインデックスをシャッフルしてから、targetCharsの順番に並べる
-            // これは「バラけた場所」と「この順番で残る」という要件を両立させるため
-            // 実際は、元の文章中の異なる場所から文字を選んで、最後にその文字たちをstorytellerの順番に並べ直す
-            remainingCharIndices = tempRemainingIndices.sort((a, b) => a - b); // 実際の表示位置を保持するためにソート
+            remainingCharIndices = tempRemainingIndices;
 
             // 最終的に表示されるstorytellerの文字を作成
             finalStoryteller.innerHTML = targetChars.map(char => `<span class="remaining-char">${char}</span>`).join('');
@@ -200,6 +226,12 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
         // 文字を崩すアニメーション
         function startFallingAnimation() {
+            charElements.forEach((charElement, index) => {
+                if (!remainingCharIndices.includes(index)) {
+                    totalFallingChars++; // 崩れる文字の総数をカウント
+                }
+            });
+
             charElements.forEach((charElement, index) => {
                 const char = charElement.dataset.char;
 
@@ -255,15 +287,15 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                         pileContainer.appendChild(piledChar);
                         fallingCharDiv.remove(); // 崩れる文字は削除
 
-                        foundCharCount++;
-                        if (foundCharCount === charElements.length - remainingCharIndices.length) {
+                        completedFallingChars++;
+                        if (completedFallingChars === totalFallingChars) {
                             // 全ての文字が積もり終わったらフェードアウトとstorytellerアニメーションを開始
                             startPileFadeOutAndStorytellerAnimation();
                         }
                     };
                 } else {
-                    // 残る文字は元の位置に残す
-                    charElement.classList.add('remaining-char-initial-pos'); // 後で調整する用のクラス
+                    // 残る文字は元の位置に残し、色を黒に設定
+                    charElement.style.color = 'black';
                 }
             });
             initialTextContainer.style.opacity = 0; // 全体が消えるように
@@ -278,24 +310,13 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
             // "storyteller" を中央に配置し、拡大アニメーション
             finalStoryteller.style.opacity = 1;
-            const finalChars = finalStoryteller.querySelectorAll('.remaining-char');
-            finalChars.forEach((charSpan, i) => {
-                // ここで「バラけた場所から集まる」挙動を擬似的に表現
-                // 初期位置はランダムまたは元の位置に近しい場所から中央へ集まるように見せる
-                // 今回はシンプルに、最初から中央に集まっている状態から拡大する
-                charSpan.style.transform = 'scale(3)'; // 最終的な拡大サイズ
-            });
 
-            finalStoryteller.animate([
-                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
-                { transform: 'translate(-50%, -50%) scale(3)', opacity: 1 }
-            ], {
-                duration: 2000, // 2秒
-                easing: 'ease-in-out', // ヌルッとした挙動
-                fill: 'forwards'
-            });
+            // アニメーションを適用
+            // transitionプロパティを使用するため、クラスを追加するだけでOK
+            setTimeout(() => {
+                finalStoryteller.classList.add('animate-final');
+            }, 50); // クラス追加を少し遅らせてtransitionを有効にする
         }
-
 
         // 初期化処理
         document.addEventListener('DOMContentLoaded', () => {
