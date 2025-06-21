@@ -27,7 +27,7 @@
             width: 90%; /* テキストが収まるように調整 */
             text-align: center;
             line-height: 1.2;
-            font-size: 4vw; /* ここを4vwに変更しました */
+            font-size: 3.5vw; /* ここを3.5vwに変更しました */
             user-select: none; /* 文字選択を防止 */
             z-index: 10;
             opacity: 1;
@@ -93,7 +93,7 @@
             display: flex; /* 文字を横に並べるためにflexboxを使用 */
             justify-content: center;
             align-items: center;
-            font-size: 4vw; /* 初期サイズは他の文字に合わせる (ここも4vwに合わせるのが自然) */
+            font-size: 3.5vw; /* 初期サイズは他の文字に合わせる (ここも3.5vwに合わせる) */
             /* アニメーションプロパティ */
             transition: transform 2s ease-in-out, letter-spacing 2s ease-in-out, opacity 0.5s ease-out; /* opacityもtransition対象に */
         }
@@ -290,9 +290,9 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
             let head = 0;
             // 広がりを調整するためのパラメータ
-            const maxSpreadDelay = 1500; // 崩壊が完全に広がるまでの最大遅延を少し長く
-            const spreadRadius = 150; // 広がりの初期半径
-            const spreadFactor = 0.8; // 伝播の遅延の計算に使う係数
+            const maxSpreadDelay = 2000; // 崩壊が完全に広がるまでの最大遅延を長くして連鎖を強調
+            const baseSpreadRadius = 70; // 広がりの初期半径を小さくして密に
+            const spreadFactor = 0.5; // 伝播の遅延の計算に使う係数を小さくして早く伝播させる
 
             while (head < animationQueue.length) {
                 const { index: currentIdx, delay: baseDelay } = animationQueue[head++];
@@ -367,11 +367,13 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                         Math.pow((rect.top + rect.height / 2) - (charRect.top + charRect.height / 2), 2)
                     );
 
-                    // 距離が一定以内、かつランダムな確率で伝播
-                    // 遅延に応じて広がる範囲を大きくし、伝播の確率も考慮
-                    if (dist < spreadRadius && Math.random() < 0.7) { // スプレッド半径内での伝播確率を少し上げる
-                        const nextDelay = baseDelay + (dist * spreadFactor) + (Math.random() * 100); // 距離とランダム性を考慮した遅延
-                        if (nextDelay < maxSpreadDelay) { // 最大遅延を超えないように
+                    // 距離と確率に基づいて伝播を調整
+                    const currentSpreadRadius = baseSpreadRadius * (1 + (baseDelay / maxSpreadDelay) * 0.5); // 遅延に応じて広がる範囲を少し大きく
+                    const probability = dist < currentSpreadRadius ? (1 - (dist / currentSpreadRadius)) : 0; // 距離が近いほど高確率
+                    
+                    if (Math.random() < probability * 1.5) { // 確率を少し高くして伝播しやすく
+                        const nextDelay = baseDelay + (dist * spreadFactor) + (Math.random() * 80); // 距離とランダム性を考慮した遅延を調整
+                        if (nextDelay < maxSpreadDelay) {
                             animationQueue.push({ index: i, delay: nextDelay });
                             processedChars.add(i);
                         }
