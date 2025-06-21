@@ -27,7 +27,7 @@
             width: 90%; /* テキストが収まるように調整 */
             text-align: center;
             line-height: 1.2;
-            font-size: 2.5vw; /* 画面サイズに合わせて調整 */
+            font-size: 4vw; /* ここを4vwに変更しました */
             user-select: none; /* 文字選択を防止 */
             z-index: 10;
             opacity: 1;
@@ -58,7 +58,7 @@
             opacity: 1;
             font-size: inherit; /* 親からフォントサイズを継承 */
             white-space: pre; /* 空白が連続してもそのまま表示されるように */
-            color: black; /* 残る文字の色も黒に */
+            color: black; /* 残る文字の色も黒に設定（変更なし） */
         }
 
         #pile-container {
@@ -93,7 +93,7 @@
             display: flex; /* 文字を横に並べるためにflexboxを使用 */
             justify-content: center;
             align-items: center;
-            font-size: 2.5vw; /* 初期サイズは他の文字に合わせる */
+            font-size: 4vw; /* 初期サイズは他の文字に合わせる (ここも4vwに合わせるのが自然) */
             /* アニメーションプロパティ */
             transition: transform 2s ease-in-out, letter-spacing 2s ease-in-out, opacity 0.5s ease-out; /* opacityもtransition対象に */
         }
@@ -328,14 +328,14 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
                 const duration = Math.random() * 0.7 + 1.2; // 1.2秒から1.9秒に調整 (落ちるスピードをさらにゆっくりに)
                 const targetY = window.innerHeight - (Math.random() * 70 + 30); // 積もる位置を少し下げる
-                const targetX = Math.random() * (window.innerWidth - fontSize * 2) + fontSize;
-
+                const targetX = initialX + (Math.random() - 0.5) * 100; // 初期X位置から少し左右にランダムにずらす
+                
                 fallingCharDiv.animate([
                     { transform: 'translate(0, 0)', opacity: 1 },
                     { transform: `translate(${targetX - initialX}px, ${targetY - initialY}px)`, opacity: 1 }
                 ], {
                     duration: duration * 1000,
-                    delay: baseDelay, // ベースの遅延を使用
+                    delay: baseDelay + Math.random() * 50, // 個々の文字にさらに小さなランダム遅延を追加
                     easing: 'linear',
                     fill: 'forwards'
                 }).onfinish = () => {
@@ -369,7 +369,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
                     // 距離が一定以内、かつランダムな確率で伝播
                     // 遅延に応じて広がる範囲を大きくし、伝播の確率も考慮
-                    if (dist < spreadRadius && Math.random() < 0.6) { // スプレッド半径内での伝播
+                    if (dist < spreadRadius && Math.random() < 0.7) { // スプレッド半径内での伝播確率を少し上げる
                         const nextDelay = baseDelay + (dist * spreadFactor) + (Math.random() * 100); // 距離とランダム性を考慮した遅延
                         if (nextDelay < maxSpreadDelay) { // 最大遅延を超えないように
                             animationQueue.push({ index: i, delay: nextDelay });
