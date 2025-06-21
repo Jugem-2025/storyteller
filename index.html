@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Text Animation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #E81F27;
+            font-family: 'Oswald', sans-serif;
+            color: black; /* 文字色を黒に設定 */
+            margin: 0;
+            overflow: hidden; /* 崩れる文字がはみ出さないように */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        #initial-text-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%; /* テキストが収まるように調整 */
+            text-align: center;
+            line-height: 1.2;
+            font-size: 3.2vw; /* ここを3.2vwに変更しました */
+            user-select: none; /* 文字選択を防止 */
+            z-index: 10;
+            opacity: 1;
+        }
+
+        .char-wrapper {
+            display: inline-block;
+            position: relative;
+            white-space: pre; /* 空白が連続してもそのまま表示されるように */
+        }
+
+        .falling-char {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform: translate(0, 0);
+            opacity: 1;
+            transition: opacity 0.5s ease-out; /* フェードアウト用 */
+            pointer-events: none; /* クリック不可に */
+            user-select: none;
+            color: black; /* 崩れる文字の色も黒に */
+        }
+
+        /* remaining-charはfinal-storyteller内のspanに適用 */
+        .remaining-char {
+            display: inline-block; /* flex itemとして機能させるため */
+            transform: scale(1); /* 初期スケール */
+            opacity: 1;
+            font-size: inherit; /* 親からフォントサイズを継承 */
+            white-space: pre; /* 空白が連続してもそのまま表示されるように */
+            color: black; /* 残る文字の色も黒に設定（変更なし） */
+        }
+
+        #pile-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100px; /* 積もる領域の目安 */
+            overflow: hidden;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .piled-char {
+            position: absolute;
+            color: black; /* 積もった文字の色も黒に */
+            opacity: 1;
+            transition: opacity 2s ease-out; /* 積もった文字のフェードアウト */
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #final-storyteller {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            white-space: nowrap;
+            opacity: 0; /* 最初は非表示 */
+            z-index: 20;
+            pointer-events: none;
+            display: flex; /* 文字を横に並べるためにflexboxを使用 */
+            justify-content: center;
+            align-items: center;
+            font-size: 3.2vw; /* 初期サイズは他の文字に合わせる (ここも3.2vwに合わせる) */
+            /* アニメーションプロパティ */
+            transition: transform 2s ease-in-out, letter-spacing 2s ease-in-out, opacity 0.5s ease-out; /* opacityもtransition対象に */
+        }
+
+        /* 拡大と文字間隔調整のためのクラス */
+        #final-storyteller.animate-final {
+            transform: translate(-50%, -50%) scale(3);
+            letter-spacing: 0.15em; /* 拡大に合わせて文字間隔を調整 */
+            opacity: 1; /* アニメーション開始で表示 */
+        }
+    </style>
+</head>
+<body>
+    <div id="initial-text-container"></div>
+    <div id="pile-container"></div>
+    <div id="final-storyteller"></div>
+
+    <script>
+        const initialText = `FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+GRAFFITI ARTIST FENG SHUI MASTER
+PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+ENGLISH TEACHER MATCHMAKER HOMELESS
+HOMELESS STREET SINGER / STORYTELLER MONK
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
+FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+GRAFFITI ARTIST FENG SHUI MASTER
+PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+ENGLISH TEACHER MATCHMAKER HOMELESS
+HOMELESS STREET SINGER / STORYTELLER MONK
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
+FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+GRAFFITI ARTIST FENG SHUI MASTER
+PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
+DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
+MURALIST BORDER HOPPER / TEA HOUSE OWNER / CHEESE ARTISAN / JUDGE
+SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
+COMMUNITY MEMBER / ENGLISH TEACHER BARBER
+GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
+ENGLISH TEACHER MATCHMAKER HOMELESS
+HOMELESS STREET SINGER / STORYTELLER MONK
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
+
+        const initialTextContainer = document.getElementById('initial-text-container');
+        const pileContainer = document.getElementById('pile-container');
+        const finalStoryteller = document.getElementById('final-storyteller');
+
+        // 残す文字を小文字に統一
+        const targetChars = ['s', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r'];
+        let charElements = [];
+        let remainingCharIndices = []; // 残る文字の元のDOM上のインデックス
+        let completedFallingChars = 0;
+        let totalFallingChars = 0;
+
+        // 文字をspanでラップしてDOMに追加
+        function setupInitialText() {
+            let tempHTML = '';
+            for (let i = 0; i < initialText.length; i++) {
+                const char = initialText[i];
+                if (char === ' ' || char === '\n') {
+                    tempHTML += `<span class="char-wrapper" data-char="${char}">`;
+                    tempHTML += (char === ' ') ? '&nbsp;' : '<br>';
+                    tempHTML += '</span>';
+                } else {
+                    tempHTML += `<span class="char-wrapper" data-char="${char}">${char}</span>`;
+                }
+            }
+            initialTextContainer.innerHTML = tempHTML;
+            charElements = Array.from(initialTextContainer.querySelectorAll('.char-wrapper'));
+
+            // 残す文字のインデックスを決定（バラけた場所で）
+            let selectedIndices = new Set(); // 最終的に選ばれたインデックスを管理
+            
+            // 各targetCharに対応する利用可能なインデックスを事前に収集
+            let availableIndicesForTarget = new Array(targetChars.length).fill(0).map(() => []);
+            for (let i = 0; i < charElements.length; i++) {
+                const charFromDOM = charElements[i].dataset.char.toLowerCase(); // DOMの文字を小文字に変換
+                for (let j = 0; j < targetChars.length; j++) {
+                    if (charFromDOM === targetChars[j]) {
+                        availableIndicesForTarget[j].push(i);
+                    }
+                }
+            }
+
+            // 選定ロジックを改善: ターゲット文字ごとに利用可能な候補をシャッフルし、距離を考慮して選ぶ
+            for (let i = 0; i < targetChars.length; i++) {
+                const currentTargetChar = targetChars[i];
+                let bestIndex = -1;
+                let maxMinDistance = -1;
+                
+                // 現在のターゲット文字の候補をシャッフル
+                let shuffledCandidates = [...availableIndicesForTarget[i]];
+                for (let k = shuffledCandidates.length - 1; k > 0; k--) {
+                    const j = Math.floor(Math.random() * (k + 1));
+                    [shuffledCandidates[k], shuffledCandidates[j]] = [shuffledCandidates[j], shuffledCandidates[k]];
+                }
+
+                // 候補の中から、既に選択されたインデックスと重複せず、かつ距離が離れているものを探す
+                for (const currentIdx of shuffledCandidates) {
+                    if (selectedIndices.has(currentIdx)) {
+                        continue; // 既に選ばれている場合はスキップ
+                    }
+
+                    if (selectedIndices.size === 0) {
+                        bestIndex = currentIdx;
+                        break;
+                    }
+
+                    let minDistance = Infinity;
+                    selectedIndices.forEach(selectedIdx => {
+                        minDistance = Math.min(minDistance, Math.abs(currentIdx - selectedIdx));
+                    });
+
+                    if (minDistance > maxMinDistance) {
+                        maxMinDistance = minDistance;
+                        bestIndex = currentIdx;
+                    }
+                }
+
+                if (bestIndex !== -1) {
+                    remainingCharIndices.push(bestIndex);
+                    selectedIndices.add(bestIndex);
+                } else {
+                    console.warn(`Warning: Could not find a suitable non-consecutive character for '${currentTargetChar}'.`);
+                    // 見つからない場合は、残す文字の要件を満たせない可能性があるが、処理は続行
+                }
+            }
+            
+            // 最終的に表示されるstorytellerの文字を作成
+            finalStoryteller.innerHTML = targetChars.map(char => `<span class="remaining-char">${char}</span>`).join('');
+            finalStoryteller.style.opacity = 0; // 初期は非表示
+        }
+
+
+        // 文字を崩すアニメーション
+        function startFallingAnimation() {
+            // totalFallingCharsの計算は、remainingCharIndicesが決定された後に行う
+            totalFallingChars = charElements.length - remainingCharIndices.length;
+            if (totalFallingChars < 0) totalFallingChars = 0; // 念のため
+
+            const initialTextContainerRect = initialTextContainer.getBoundingClientRect();
+            // 左3分の1あたりのX座標
+            const startX = initialTextContainerRect.left + initialTextContainerRect.width / 3; 
+            // 上部から少し下のY座標
+            const startY = initialTextContainerRect.top + 50; 
+
+            let processedChars = new Set(); // 既にアニメーションがスケジュールされた文字のインデックスを保持
+            let animationQueue = []; // アニメーションをスケジュールするためのキュー
+
+            // 崩壊の起点となる文字（複数選んで分散させる）
+            // 初期コンテナ内の文字をループし、開始点に近いものを初期候補とする
+            let initialCandidates = [];
+            for(let i = 0; i < charElements.length; i++) {
+                const charRect = charElements[i].getBoundingClientRect();
+                const charCenterX = charRect.left + charRect.width / 2;
+                const charCenterY = charRect.top + charRect.height / 2;
+
+                // 左1/3以内、かつ上部半分以内にある文字を候補にする
+                if (charCenterX < window.innerWidth / 3 && charCenterY < window.innerHeight / 2) {
+                    // かつ、残す文字ではないこと
+                    if (!remainingCharIndices.includes(i)) {
+                         initialCandidates.push(i);
+                    }
+                }
+            }
+
+            // 初期候補からランダムに数個選んでキューに入れる (崩壊開始を分散させる)
+            // 例えば、候補が多ければ5-10個、少なければ全て
+            const numInitialPoints = Math.min(initialCandidates.length, Math.floor(Math.random() * 6) + 5); // 5から10個
+            for(let i = 0; i < numInitialPoints; i++) {
+                const randomIndex = Math.floor(Math.random() * initialCandidates.length);
+                const charIndex = initialCandidates[randomIndex];
+                if (!processedChars.has(charIndex)) {
+                    animationQueue.push({ index: charIndex, delay: 0 });
+                    processedChars.add(charIndex);
+                }
+                initialCandidates.splice(randomIndex, 1); // 選んだら候補から削除
+            }
+
+            // キューが空の場合（崩落させる文字がない場合）、即座に次のステップへ
+            if (animationQueue.length === 0 && totalFallingChars === 0) {
+                startPileFadeOutAndStorytellerAnimation();
+                return;
+            }
+
+            let head = 0;
+            // 広がりを調整するためのパラメータ
+            const maxSpreadDelay = 6000; // 崩壊が全体で6秒になるように最大遅延を調整
+            const baseSpreadRadius = 60; // 広がりの初期半径を少し小さくして密に
+            const spreadFactor = 0.3; // 伝播の遅延の計算に使う係数を小さくして早く伝播させる
+
+            while (head < animationQueue.length) {
+                const { index: currentIdx, delay: baseDelay } = animationQueue[head++];
+                
+                const charElement = charElements[currentIdx];
+                // 残す文字は処理しない。念のためここでもチェック。
+                if (remainingCharIndices.includes(currentIdx)) {
+                    charElement.style.color = 'black'; // 残す文字の色を確実に黒に
+                    continue; 
+                }
+
+                const char = charElement.dataset.char;
+                const rect = charElement.getBoundingClientRect();
+                const initialX = rect.left + window.scrollX;
+                const initialY = rect.top + window.scrollY;
+                const fontSize = parseFloat(window.getComputedStyle(charElement).fontSize);
+
+                const fallingCharDiv = document.createElement('div');
+                fallingCharDiv.classList.add('falling-char');
+                fallingCharDiv.textContent = char === '\n' ? '' : char;
+                fallingCharDiv.style.cssText = `
+                    position: fixed;
+                    left: ${initialX}px;
+                    top: ${initialY}px;
+                    font-size: ${fontSize}px;
+                    pointer-events: none;
+                    user-select: none;
+                    z-index: 10;
+                `;
+                document.body.appendChild(fallingCharDiv);
+
+                charElement.style.opacity = 0; // 元の文字を非表示に
+
+                const duration = Math.random() * 0.7 + 1.2; // 1.2秒から1.9秒に調整 (落ちるスピードをさらにゆっくりに)
+                const targetY = window.innerHeight - (Math.random() * 70 + 30); // 積もる位置を少し下げる
+                const targetX = initialX + (Math.random() - 0.5) * 100; // 初期X位置から少し左右にランダムにずらす
+                
+                fallingCharDiv.animate([
+                    { transform: 'translate(0, 0)', opacity: 1 },
+                    { transform: `translate(${targetX - initialX}px, ${targetY - initialY}px)`, opacity: 1 }
+                ], {
+                    duration: duration * 1000,
+                    delay: baseDelay + Math.random() * 30, // 個々の文字にさらに小さなランダム遅延を追加 (少し減らしてより連鎖感を)
+                    easing: 'linear',
+                    fill: 'forwards'
+                }).onfinish = () => {
+                    const piledChar = document.createElement('div');
+                    piledChar.classList.add('piled-char');
+                    piledChar.textContent = char === '\n' ? '' : char;
+                    piledChar.style.cssText = `
+                        left: ${targetX}px;
+                        top: ${targetY}px;
+                        font-size: ${fontSize}px;
+                    `;
+                    pileContainer.appendChild(piledChar);
+                    fallingCharDiv.remove();
+
+                    completedFallingChars++;
+                    if (completedFallingChars === totalFallingChars) {
+                        startPileFadeOutAndStorytellerAnimation();
+                    }
+                };
+
+                // 周囲の文字をキューに追加（崩壊の伝播）
+                for (let i = 0; i < charElements.length; i++) {
+                    if (i === currentIdx || processedChars.has(i)) continue;
+                    if (remainingCharIndices.includes(i)) continue; // 残す文字は伝播対象外
+
+                    const charRect = charElements[i].getBoundingClientRect();
+                    const dist = Math.sqrt(
+                        Math.pow((rect.left + rect.width / 2) - (charRect.left + charRect.width / 2), 2) +
+                        Math.pow((rect.top + rect.height / 2) - (charRect.top + charRect.height / 2), 2)
+                    );
+
+                    // 距離と確率に基づいて伝播を調整
+                    const currentSpreadRadius = baseSpreadRadius * (1 + (baseDelay / maxSpreadDelay) * 0.5); // 遅延に応じて広がる範囲を少し大きく
+                    const probability = dist < currentSpreadRadius ? (1 - (dist / currentSpreadRadius)) : 0; // 距離が近いほど高確率
+                    
+                    if (Math.random() < probability * 1.8) { // 確率をさらに上げて伝播しやすくし、ドミノ感を強調
+                        const nextDelay = baseDelay + (dist * spreadFactor) + (Math.random() * 50); // 距離とランダム性を考慮した遅延を調整
+                        if (nextDelay < maxSpreadDelay) {
+                            animationQueue.push({ index: i, delay: nextDelay });
+                            processedChars.add(i);
+                        }
+                    }
+                }
+            }
+            initialTextContainer.style.opacity = 0; // 全体が消えるように
+        }
+
+        function startPileFadeOutAndStorytellerAnimation() {
+            // 積もった文字をフェードアウト
+            const piledChars = document.querySelectorAll('.piled-char');
+            piledChars.forEach(char => {
+                char.style.opacity = 0; // CSS transitionで2秒かけてフェードアウト
+            });
+
+            // 崩れ落ちなかった文字（storyteller）の表示と拡大を2秒後に開始
+            setTimeout(() => {
+                finalStoryteller.classList.add('animate-final'); // CSS transitionでアニメーション
+            }, 2000); // フェードアウトの2秒後
+        }
+
+        // 初期化処理
+        document.addEventListener('DOMContentLoaded', () => {
+            setupInitialText();
+
+            // 3秒後にアニメーション開始
+            setTimeout(() => {
+                startFallingAnimation();
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
