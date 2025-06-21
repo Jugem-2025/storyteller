@@ -150,9 +150,10 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
         const pileContainer = document.getElementById('pile-container');
         const finalStoryteller = document.getElementById('final-storyteller');
 
-        const targetChars = ['S', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r']; // 'S'を大文字に変更
+        // 残す文字を小文字に統一
+        const targetChars = ['s', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r'];
         let charElements = [];
-        let remainingCharIndices = [];
+        let remainingCharIndices = []; // 残る文字の元のDOM上のインデックス
         let completedFallingChars = 0;
         let totalFallingChars = 0;
 
@@ -173,63 +174,63 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             charElements = Array.from(initialTextContainer.querySelectorAll('.char-wrapper'));
 
             // 残す文字のインデックスを決定（バラけた場所で）
-            let tempRemainingIndices = [];
+            let selectedIndices = new Set(); // 最終的に選ばれたインデックスを管理
             
-            targetChars.forEach(targetChar => {
-                let availableIndices = [];
-                // ターゲット文字と一致し、かつまだ選ばれていない文字を探す
-                for (let i = 0; i < charElements.length; i++) {
-                    const charElement = charElements[i];
-                    const charToCheck = (targetChar === 'S') ? charElement.dataset.char : charElement.dataset.char.toLowerCase();
-                    
-                    if (!tempRemainingIndices.includes(i) && charToCheck === targetChar.toLowerCase()) {
-                        // 'S'の場合のみ、元のテキストの'S'と完全に一致するものを探す
-                        // それ以外は小文字で比較して、大文字・小文字を区別しない
-                        if (targetChar === 'S' && charElement.dataset.char === 'S') {
-                            availableIndices.push(i);
-                        } else if (targetChar !== 'S' && charToCheck === targetChar) {
-                             availableIndices.push(i);
-                        }
+            // 各targetCharに対応する利用可能なインデックスを事前に収集
+            let availableIndicesForTarget = new Array(targetChars.length).fill(0).map(() => []);
+            for (let i = 0; i < charElements.length; i++) {
+                const charFromDOM = charElements[i].dataset.char.toLowerCase(); // DOMの文字を小文字に変換
+                for (let j = 0; j < targetChars.length; j++) {
+                    if (charFromDOM === targetChars[j]) {
+                        availableIndicesForTarget[j].push(i);
+                    }
+                }
+            }
+
+            // 選定ロジックを改善: ターゲット文字ごとに利用可能な候補をシャッフルし、距離を考慮して選ぶ
+            for (let i = 0; i < targetChars.length; i++) {
+                const currentTargetChar = targetChars[i];
+                let bestIndex = -1;
+                let maxMinDistance = -1;
+                
+                // 現在のターゲット文字の候補をシャッフル
+                let shuffledCandidates = [...availableIndicesForTarget[i]];
+                for (let k = shuffledCandidates.length - 1; k > 0; k--) {
+                    const j = Math.floor(Math.random() * (k + 1));
+                    [shuffledCandidates[k], shuffledCandidates[j]] = [shuffledCandidates[j], shuffledCandidates[k]];
+                }
+
+                // 候補の中から、既に選択されたインデックスと重複せず、かつ距離が離れているものを探す
+                for (const currentIdx of shuffledCandidates) {
+                    if (selectedIndices.has(currentIdx)) {
+                        continue; // 既に選ばれている場合はスキップ
+                    }
+
+                    if (selectedIndices.size === 0) {
+                        bestIndex = currentIdx;
+                        break;
+                    }
+
+                    let minDistance = Infinity;
+                    selectedIndices.forEach(selectedIdx => {
+                        minDistance = Math.min(minDistance, Math.abs(currentIdx - selectedIdx));
+                    });
+
+                    if (minDistance > maxMinDistance) {
+                        maxMinDistance = minDistance;
+                        bestIndex = currentIdx;
                     }
                 }
 
-                if (availableIndices.length > 0) {
-                    // 既に選ばれたインデックスと最も距離があるものを優先
-                    let bestIndex = -1;
-                    let maxMinDistance = -1;
-
-                    // availableIndices をシャッフルしてランダム性を高める
-                    for (let i = availableIndices.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
-                    }
-
-                    for (const currentIdx of availableIndices) {
-                        if (tempRemainingIndices.length === 0) {
-                            bestIndex = currentIdx;
-                            break;
-                        } else {
-                            let minDistance = Infinity;
-                            for (const selectedIdx of tempRemainingIndices) {
-                                minDistance = Math.min(minDistance, Math.abs(currentIdx - selectedIdx));
-                            }
-                            if (minDistance > maxMinDistance) {
-                                maxMinDistance = minDistance;
-                                bestIndex = currentIdx;
-                            }
-                        }
-                    }
-                    if (bestIndex !== -1) {
-                        tempRemainingIndices.push(bestIndex);
-                    } else {
-                        console.warn(`Target character '${targetChar}' could not be placed non-continuously.`);
-                    }
+                if (bestIndex !== -1) {
+                    remainingCharIndices.push(bestIndex);
+                    selectedIndices.add(bestIndex);
                 } else {
-                    console.warn(`Target character '${targetChar}' not found in text.`);
+                    console.warn(`Warning: Could not find a suitable non-consecutive character for '${currentTargetChar}'.`);
+                    // 見つからない場合は、残す文字の要件を満たせない可能性があるが、処理は続行
                 }
-            });
-            remainingCharIndices = tempRemainingIndices;
-
+            }
+            
             // 最終的に表示されるstorytellerの文字を作成
             finalStoryteller.innerHTML = targetChars.map(char => `<span class="remaining-char">${char}</span>`).join('');
             finalStoryteller.style.opacity = 0; // 初期は非表示
@@ -238,146 +239,143 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
         // 文字を崩すアニメーション
         function startFallingAnimation() {
-            charElements.forEach((charElement, index) => {
-                if (!remainingCharIndices.includes(index)) {
-                    totalFallingChars++; // 崩れる文字の総数をカウント
-                }
-            });
+            // totalFallingCharsの計算は、remainingCharIndicesが決定された後に行う
+            totalFallingChars = charElements.length - remainingCharIndices.length;
+            if (totalFallingChars < 0) totalFallingChars = 0; // 念のため
 
             const initialTextContainerRect = initialTextContainer.getBoundingClientRect();
-            const startX = initialTextContainerRect.left + initialTextContainerRect.width / 6; // 左1/3あたり
-            const startY = initialTextContainerRect.top + 20; // 上部から少し下
-
-            let currentDelay = 0;
-            const delayIncrement = 15; // 崩壊の広がりを制御する遅延の増分（ミリ秒）
-            const decayRadiusIncrement = 0.5; // 崩壊範囲の広がり速度
-            const maxDecayRadius = Math.max(initialTextContainerRect.width, initialTextContainerRect.height) / 2; // 最大崩壊半径
+            // 左3分の1あたりのX座標
+            const startX = initialTextContainerRect.left + initialTextContainerRect.width / 3; 
+            // 上部から少し下のY座標
+            const startY = initialTextContainerRect.top + 50; 
 
             let processedChars = new Set(); // 既にアニメーションがスケジュールされた文字のインデックスを保持
+            let animationQueue = []; // アニメーションをスケジュールするためのキュー
 
-            const animateChar = (index) => {
-                if (processedChars.has(index)) return;
-                processedChars.add(index);
-
-                const charElement = charElements[index];
-                const char = charElement.dataset.char;
-
-                if (!remainingCharIndices.includes(index)) {
-                    const rect = charElement.getBoundingClientRect();
-                    const initialX = rect.left + window.scrollX;
-                    const initialY = rect.top + window.scrollY;
-                    const fontSize = parseFloat(window.getComputedStyle(charElement).fontSize);
-
-                    const fallingCharDiv = document.createElement('div');
-                    fallingCharDiv.classList.add('falling-char');
-                    fallingCharDiv.textContent = char === '\n' ? '' : char;
-                    fallingCharDiv.style.cssText = `
-                        position: fixed;
-                        left: ${initialX}px;
-                        top: ${initialY}px;
-                        font-size: ${fontSize}px;
-                        pointer-events: none;
-                        user-select: none;
-                        z-index: 10;
-                    `;
-                    document.body.appendChild(fallingCharDiv);
-
-                    charElement.style.opacity = 0;
-
-                    const duration = Math.random() * 0.5 + 1.0; // 1.0秒から1.5秒に調整 (速すぎないように)
-                    const targetY = window.innerHeight - (Math.random() * 50 + 20);
-                    const targetX = Math.random() * (window.innerWidth - fontSize * 2) + fontSize;
-
-                    fallingCharDiv.animate([
-                        { transform: 'translate(0, 0)', opacity: 1 },
-                        { transform: `translate(${targetX - initialX}px, ${targetY - initialY}px)`, opacity: 1 }
-                    ], {
-                        duration: duration * 1000,
-                        delay: currentDelay, // 崩壊の広がりと連動
-                        easing: 'linear', // 落ちるスピードを一定に
-                        fill: 'forwards'
-                    }).onfinish = () => {
-                        const piledChar = document.createElement('div');
-                        piledChar.classList.add('piled-char');
-                        piledChar.textContent = char === '\n' ? '' : char;
-                        piledChar.style.cssText = `
-                            left: ${targetX}px;
-                            top: ${targetY}px;
-                            font-size: ${fontSize}px;
-                        `;
-                        pileContainer.appendChild(piledChar);
-                        fallingCharDiv.remove();
-
-                        completedFallingChars++;
-                        if (completedFallingChars === totalFallingChars) {
-                            startPileFadeOutAndStorytellerAnimation();
-                        }
-                    };
-                } else {
-                    charElement.style.color = 'black';
-                }
-            };
-
-            // 崩壊の起点となる文字からアニメーションをスケジュール
-            const queue = [];
-            const visited = new Set();
-
-            // 起点となる文字を見つける（画面左上1/3あたり）
-            let initialDecayCharIndex = -1;
+            // 崩壊の起点となる文字（複数選んで分散させる）
+            // 初期コンテナ内の文字をループし、開始点に近いものを初期候補とする
+            let initialCandidates = [];
             for(let i = 0; i < charElements.length; i++) {
                 const charRect = charElements[i].getBoundingClientRect();
                 const charCenterX = charRect.left + charRect.width / 2;
                 const charCenterY = charRect.top + charRect.height / 2;
 
+                // 左1/3以内、かつ上部半分以内にある文字を候補にする
                 if (charCenterX < window.innerWidth / 3 && charCenterY < window.innerHeight / 2) {
-                    initialDecayCharIndex = i;
-                    break;
+                    // かつ、残す文字ではないこと
+                    if (!remainingCharIndices.includes(i)) {
+                         initialCandidates.push(i);
+                    }
                 }
             }
 
-            if (initialDecayCharIndex === -1 && charElements.length > 0) {
-                 // 見つからなければ最初の文字を起点とする
-                initialDecayCharIndex = 0;
+            // 初期候補からランダムに数個選んでキューに入れる (崩壊開始を分散させる)
+            // 例えば、候補が多ければ5-10個、少なければ全て
+            const numInitialPoints = Math.min(initialCandidates.length, Math.floor(Math.random() * 6) + 5); // 5から10個
+            for(let i = 0; i < numInitialPoints; i++) {
+                const randomIndex = Math.floor(Math.random() * initialCandidates.length);
+                const charIndex = initialCandidates[randomIndex];
+                if (!processedChars.has(charIndex)) {
+                    animationQueue.push({ index: charIndex, delay: 0 });
+                    processedChars.add(charIndex);
+                }
+                initialCandidates.splice(randomIndex, 1); // 選んだら候補から削除
             }
 
-            if (initialDecayCharIndex !== -1) {
-                queue.push({ index: initialDecayCharIndex, delay: 0 });
-                visited.add(initialDecayCharIndex);
+            // キューが空の場合（崩落させる文字がない場合）、即座に次のステップへ
+            if (animationQueue.length === 0 && totalFallingChars === 0) {
+                startPileFadeOutAndStorytellerAnimation();
+                return;
             }
 
             let head = 0;
-            while (head < queue.length) {
-                const { index: currentIdx, delay: currentCharDelay } = queue[head++];
-                animateChar(currentIdx);
+            // 広がりを調整するためのパラメータ
+            const maxSpreadDelay = 1500; // 崩壊が完全に広がるまでの最大遅延を少し長く
+            const spreadRadius = 150; // 広がりの初期半径
+            const spreadFactor = 0.8; // 伝播の遅延の計算に使う係数
 
-                // 隣接する文字を探索（周囲の文字をランダムに含める）
-                const neighbors = [];
-                const maxRange = 300; // 近くの文字を探す範囲
-
-                for (let i = 0; i < charElements.length; i++) {
-                    if (i === currentIdx || visited.has(i)) continue;
-
-                    const rect1 = charElements[currentIdx].getBoundingClientRect();
-                    const rect2 = charElements[i].getBoundingClientRect();
-
-                    const dist = Math.sqrt(Math.pow(rect1.left - rect2.left, 2) + Math.pow(rect1.top - rect2.top, 2));
-
-                    if (dist < maxRange && Math.random() < 0.2) { // 20%の確率でランダムに広がる
-                        neighbors.push(i);
-                    }
+            while (head < animationQueue.length) {
+                const { index: currentIdx, delay: baseDelay } = animationQueue[head++];
+                
+                const charElement = charElements[currentIdx];
+                // 残す文字は処理しない。念のためここでもチェック。
+                if (remainingCharIndices.includes(currentIdx)) {
+                    charElement.style.color = 'black'; // 残す文字の色を確実に黒に
+                    continue; 
                 }
 
-                // ランダムに選んだ隣接文字をキューに追加
-                neighbors.forEach(nIdx => {
-                    if (!visited.has(nIdx)) {
-                        visited.add(nIdx);
-                        queue.push({ index: nIdx, delay: currentCharDelay + delayIncrement + Math.random() * 50 }); // 少しランダムな遅延を追加
-                    }
-                });
+                const char = charElement.dataset.char;
+                const rect = charElement.getBoundingClientRect();
+                const initialX = rect.left + window.scrollX;
+                const initialY = rect.top + window.scrollY;
+                const fontSize = parseFloat(window.getComputedStyle(charElement).fontSize);
 
-                // 一定数の文字が処理されたら、次のバッチをスケジュール
-                if (head % 50 === 0) { // 例: 50文字ごとに処理
-                    currentDelay = currentCharacterDelay + 50; // 全体的な遅延を増やす
+                const fallingCharDiv = document.createElement('div');
+                fallingCharDiv.classList.add('falling-char');
+                fallingCharDiv.textContent = char === '\n' ? '' : char;
+                fallingCharDiv.style.cssText = `
+                    position: fixed;
+                    left: ${initialX}px;
+                    top: ${initialY}px;
+                    font-size: ${fontSize}px;
+                    pointer-events: none;
+                    user-select: none;
+                    z-index: 10;
+                `;
+                document.body.appendChild(fallingCharDiv);
+
+                charElement.style.opacity = 0; // 元の文字を非表示に
+
+                const duration = Math.random() * 0.7 + 1.2; // 1.2秒から1.9秒に調整 (落ちるスピードをさらにゆっくりに)
+                const targetY = window.innerHeight - (Math.random() * 70 + 30); // 積もる位置を少し下げる
+                const targetX = Math.random() * (window.innerWidth - fontSize * 2) + fontSize;
+
+                fallingCharDiv.animate([
+                    { transform: 'translate(0, 0)', opacity: 1 },
+                    { transform: `translate(${targetX - initialX}px, ${targetY - initialY}px)`, opacity: 1 }
+                ], {
+                    duration: duration * 1000,
+                    delay: baseDelay, // ベースの遅延を使用
+                    easing: 'linear',
+                    fill: 'forwards'
+                }).onfinish = () => {
+                    const piledChar = document.createElement('div');
+                    piledChar.classList.add('piled-char');
+                    piledChar.textContent = char === '\n' ? '' : char;
+                    piledChar.style.cssText = `
+                        left: ${targetX}px;
+                        top: ${targetY}px;
+                        font-size: ${fontSize}px;
+                    `;
+                    pileContainer.appendChild(piledChar);
+                    fallingCharDiv.remove();
+
+                    completedFallingChars++;
+                    if (completedFallingChars === totalFallingChars) {
+                        startPileFadeOutAndStorytellerAnimation();
+                    }
+                };
+
+                // 周囲の文字をキューに追加（崩壊の伝播）
+                for (let i = 0; i < charElements.length; i++) {
+                    if (i === currentIdx || processedChars.has(i)) continue;
+                    if (remainingCharIndices.includes(i)) continue; // 残す文字は伝播対象外
+
+                    const charRect = charElements[i].getBoundingClientRect();
+                    const dist = Math.sqrt(
+                        Math.pow((rect.left + rect.width / 2) - (charRect.left + charRect.width / 2), 2) +
+                        Math.pow((rect.top + rect.height / 2) - (charRect.top + charRect.height / 2), 2)
+                    );
+
+                    // 距離が一定以内、かつランダムな確率で伝播
+                    // 遅延に応じて広がる範囲を大きくし、伝播の確率も考慮
+                    if (dist < spreadRadius && Math.random() < 0.6) { // スプレッド半径内での伝播
+                        const nextDelay = baseDelay + (dist * spreadFactor) + (Math.random() * 100); // 距離とランダム性を考慮した遅延
+                        if (nextDelay < maxSpreadDelay) { // 最大遅延を超えないように
+                            animationQueue.push({ index: i, delay: nextDelay });
+                            processedChars.add(i);
+                        }
+                    }
                 }
             }
             initialTextContainer.style.opacity = 0; // 全体が消えるように
