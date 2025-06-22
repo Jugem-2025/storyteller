@@ -44,7 +44,6 @@
             left: 0;
             top: 0;
             opacity: 1;
-            /* transition: opacity 0.5s ease-out; /* Falling animation handles opacity */ */
             pointer-events: none; /* クリック不可に */
             user-select: none;
             color: black; /* 崩れる文字の色も黒に */
@@ -120,7 +119,7 @@ SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
 COMMUNITY MEMBER / ENGLISH TEACHER BARBER
 GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
 ENGLISH TEACHER MATCHMAKER HOMELESS
-HOMELESS STREET SINGER / STORYTELLER MONK
+HOM ELESS STREET SINGER / STORYTELLER MONK
 STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
 FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
 GRAFFITI ARTIST FENG SHUI MASTER
@@ -131,7 +130,7 @@ SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
 COMMUNITY MEMBER / ENGLISH TEACHER BARBER
 GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
 ENGLISH TEACHER MATCHMAKER HOMELESS
-HOMELESS STREET SINGER / STORYTELLER MONK
+HOM ELESS STREET SINGER / STORYTELLER MONK
 STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR
 FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
 GRAFFITI ARTIST FENG SHUI MASTER
@@ -142,7 +141,7 @@ SOCIAL WORKER JEWELER / NOVELIST / PRIEST / MURALIST
 COMMUNITY MEMBER / ENGLISH TEACHER BARBER
 GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
 ENGLISH TEACHER MATCHMAKER HOMELESS
-HOMELESS STREET SINGER / STORYTELLER MONK
+HOM ELESS STREET SINGER / STORYTELLER MONK
 STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
         const initialTextContainer = document.getElementById('initial-text-container');
@@ -162,6 +161,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             for (let i = 0; i < initialText.length; i++) {
                 const char = initialText[i];
                 if (char === ' ' || char === '\n') {
+                    // スペースと改行もchar-wrapperで囲む
                     tempHTML += `<span class="char-wrapper" data-char="${char}" data-index="${i}">`;
                     tempHTML += (char === ' ') ? '&nbsp;' : '<br>';
                     tempHTML += '</span>';
@@ -180,6 +180,8 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             for (let i = 0; i < charElements.length; i++) {
                 const charFromDOM = charElements[i].dataset.char.toLowerCase(); // DOMの文字を小文字に変換
                 for (let j = 0; j < targetChars.length; j++) {
+                    // targetChars[j] に対応する文字を見つけ、まだ selectedIndices に含まれていない場合に追加
+                    // availableIndicesForTarget[j] には重複する文字の全てのインデックスが入る
                     if (charFromDOM === targetChars[j]) {
                         availableIndicesForTarget[j].push(i);
                     }
@@ -190,8 +192,8 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             for (let i = 0; i < targetChars.length; i++) {
                 const currentTargetChar = targetChars[i];
                 let bestIndex = -1;
-                let maxMinDistance = -1;
-                
+                let maxMinDistance = -1; // 既に選択された文字からの最小距離の最大値
+
                 // 現在のターゲット文字の候補をシャッフル
                 let shuffledCandidates = [...availableIndicesForTarget[i]];
                 for (let k = shuffledCandidates.length - 1; k > 0; k--) {
@@ -206,6 +208,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                     }
 
                     if (selectedIndices.size === 0) {
+                        // 最初の文字は無条件で選択
                         bestIndex = currentIdx;
                         break;
                     }
@@ -238,14 +241,17 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
         // 文字を崩すアニメーション
         function startFallingAnimation() {
+            // totalFallingCharsは、アニメーション対象となる文字の総数
+            // remainingCharIndicesに含まれる文字はアニメーションしないため、ここから除外される
             totalFallingChars = charElements.length - remainingCharIndices.length;
             if (totalFallingChars < 0) totalFallingChars = 0;
 
-            let processedChars = new Set(remainingCharIndices); // 残す文字は最初からprocessedとする
+            // processedChars セットは、既に崩壊アニメーションの対象としてキューに追加された文字のインデックスを追跡
+            // 残す文字のインデックスは最初からこのセットに追加しておくことで、崩壊対象から除外される
+            let processedChars = new Set(remainingCharIndices); 
             let animationQueue = [];
 
-            // 崩壊の起点となる文字（画面中央上部の1点から複数の文字がほぼ同時に落ち始め）
-            // 中心点の文字を見つける
+            // 崩壊の起点となる文字を見つける
             let centerCharIndex = -1;
             let minDistanceToCenter = Infinity;
             const screenCenterX = window.innerWidth / 2;
@@ -310,11 +316,9 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 const { index: currentIdx, delay: baseDelay } = animationQueue[head++];
                 
                 const charElement = charElements[currentIdx];
-                // ここでは processedChars.has(currentIdx) のチェックは不要。
-                // キューに入れる時点でprocessedCharsに追加されているため。
-                // ただし、念のため remainingCharIndices に含まれないことを確認しておく。
+                // この時点では currentIdx の文字は fallingChars に含まれていないはず (processedChars でフィルタ済み)
+                // しかし、念のため二重チェック
                 if (remainingCharIndices.includes(currentIdx)) {
-                    // このブロックは通常実行されないはずだが、残す文字が誤ってキューに入った場合の安全策
                     continue; 
                 }
 
@@ -326,7 +330,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
                 const fallingCharDiv = document.createElement('div');
                 fallingCharDiv.classList.add('falling-char');
-                fallingCharDiv.textContent = char === '\n' ? '' : char;
+                fallingCharDiv.textContent = char === '\n' ? '' : char; // 改行文字は空文字列にする
                 fallingCharDiv.style.cssText = `
                     position: fixed;
                     left: ${initialX}px;
@@ -338,7 +342,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 `;
                 document.body.appendChild(fallingCharDiv);
 
-                // 崩れる文字の元のchar-wrapper要素のみ非表示にする
+                // 崩れる文字の元のchar-wrapper要素を非表示にする
                 charElement.style.opacity = 0; 
 
                 // 浮遊感、ゆっくり落ちる、ランダムな回転と左右の揺れ
