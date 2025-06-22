@@ -27,7 +27,7 @@
             width: 90%; /* テキストが収まるように調整 */
             text-align: center;
             line-height: 1.2;
-            font-size: 3vw; /* 文字サイズを3.2vwに設定 */
+            font-size: 3vw; /* 文字サイズを3vwに設定 */
             user-select: none; /* 文字選択を防止 */
             z-index: 10;
             opacity: 1;
@@ -92,7 +92,7 @@
             display: flex; /* 文字を横に並べるためにflexboxを使用 */
             justify-content: center;
             align-items: center;
-            font-size: 3.2vw; /* 初期サイズは他の文字に合わせる */
+            font-size: 3vw; /* 初期サイズは他の文字に合わせる */
             /* アニメーションプロパティ */
             transition: transform 2s ease-in-out, letter-spacing 2s ease-in-out, opacity 0.5s ease-out; /* opacityもtransition対象に */
         }
@@ -241,42 +241,59 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             totalFallingChars = charElements.length - remainingCharIndices.length;
             if (totalFallingChars < 0) totalFallingChars = 0;
 
-            const initialTextContainerRect = initialTextContainer.getBoundingClientRect();
-            // 画面中央上部を開始点に近づける
-            const startX = initialTextContainerRect.left + initialTextContainerRect.width / 2; 
-            const startY = initialTextContainerRect.top + initialTextContainerRect.height / 4; // 上部1/4あたり
-
             let processedChars = new Set();
             let animationQueue = [];
 
-            // 崩壊の起点となる文字（動画のように中央上部から複数の文字を）
-            let initialCandidates = [];
+            // 崩壊の起点となる文字（画面中央上部の1点から複数の文字がほぼ同時に落ち始め）
+            // 中心点の文字を見つける
+            let centerCharIndex = -1;
+            let minDistanceToCenter = Infinity;
+            const screenCenterX = window.innerWidth / 2;
+            const screenCenterYUpper = window.innerHeight / 4; // 画面上部1/4あたり
+
             for(let i = 0; i < charElements.length; i++) {
+                if (remainingCharIndices.includes(i)) continue; // 残す文字は除外
+
                 const charRect = charElements[i].getBoundingClientRect();
                 const charCenterX = charRect.left + charRect.width / 2;
                 const charCenterY = charRect.top + charRect.height / 2;
 
-                // 画面中央上部付近（左右の幅の半分、上部1/3程度）にある文字を候補にする
-                if (charCenterX > window.innerWidth * 0.25 && charCenterX < window.innerWidth * 0.75 && 
-                    charCenterY < window.innerHeight * 0.33) {
-                    if (!remainingCharIndices.includes(i)) {
-                         initialCandidates.push(i);
+                const dist = Math.sqrt(
+                    Math.pow(charCenterX - screenCenterX, 2) +
+                    Math.pow(charCenterY - screenCenterYUpper, 2)
+                );
+
+                if (dist < minDistanceToCenter) {
+                    minDistanceToCenter = dist;
+                    centerCharIndex = i;
+                }
+            }
+
+            if (centerCharIndex !== -1) {
+                // 中心点となる文字をキューに追加
+                animationQueue.push({ index: centerCharIndex, delay: 0 });
+                processedChars.add(centerCharIndex);
+
+                // 中心点から近い周囲の文字を初期崩壊の候補として追加
+                const initialSpreadRadius = 150; // 中心から同時に落ち始める範囲
+                for (let i = 0; i < charElements.length; i++) {
+                    if (i === centerCharIndex || processedChars.has(i)) continue;
+                    if (remainingCharIndices.includes(i)) continue;
+
+                    const charRect = charElements[i].getBoundingClientRect();
+                    const centerCharRect = charElements[centerCharIndex].getBoundingClientRect();
+                    const dist = Math.sqrt(
+                        Math.pow((centerCharRect.left + centerCharRect.width / 2) - (charRect.left + charRect.width / 2), 2) +
+                        Math.pow((centerCharRect.top + centerCharRect.height / 2) - (charRect.top + charRect.height / 2), 2)
+                    );
+
+                    if (dist < initialSpreadRadius) {
+                        animationQueue.push({ index: i, delay: Math.random() * 150 }); // ほぼ同時に落ち始めるための僅かなランダム遅延
+                        processedChars.add(i);
                     }
                 }
             }
-
-            // 初期候補からランダムに少し多めに選んでキューに入れる (複数同時に落ち始めるため)
-            const numInitialPoints = Math.min(initialCandidates.length, Math.floor(Math.random() * 8) + 10); // 10から17個
-            for(let i = 0; i < numInitialPoints; i++) {
-                const randomIndex = Math.floor(Math.random() * initialCandidates.length);
-                const charIndex = initialCandidates[randomIndex];
-                if (!processedChars.has(charIndex)) {
-                    animationQueue.push({ index: charIndex, delay: Math.random() * 200 }); // 初期崩壊にも僅かなランダム遅延
-                    processedChars.add(charIndex);
-                }
-                initialCandidates.splice(randomIndex, 1);
-            }
-
+            
             if (animationQueue.length === 0 && totalFallingChars === 0) {
                 startPileFadeOutAndStorytellerAnimation();
                 return;
@@ -285,8 +302,8 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             let head = 0;
             // 広がりを調整するためのパラメータ (全体6秒、浮遊感、波紋のような伝播)
             const maxSpreadDelay = 5500; // 崩壊の伝播が完了するまでの時間 (全体6秒に収まるように微調整)
-            const baseSpreadRadius = 90; // 広がりの初期半径を少し大きくして、波紋のように広がりやすく
-            const spreadFactor = 0.2; // 伝播の遅延の計算に使う係数をさらに小さくして、伝播を速くし連鎖を強調
+            const baseSpreadRadius = 100; // 広がりの初期半径を少し大きくして、波紋のように広がりやすく
+            const spreadFactor = 0.15; // 伝播の遅延の計算に使う係数をさらに小さくして、伝播を速くし連鎖を強調
 
             while (head < animationQueue.length) {
                 const { index: currentIdx, delay: baseDelay } = animationQueue[head++];
@@ -357,17 +374,18 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                     if (remainingCharIndices.includes(i)) continue;
 
                     const charRect = charElements[i].getBoundingClientRect();
+                    const currentElementRect = charElement.getBoundingClientRect(); // 伝播元となる文字のRect
                     const dist = Math.sqrt(
-                        Math.pow((rect.left + rect.width / 2) - (charRect.left + charRect.width / 2), 2) +
-                        Math.pow((rect.top + rect.height / 2) - (charRect.top + charRect.height / 2), 2)
+                        Math.pow((currentElementRect.left + currentElementRect.width / 2) - (charRect.left + charRect.width / 2), 2) +
+                        Math.pow((currentElementRect.top + currentElementRect.height / 2) - (charRect.top + charRect.height / 2), 2)
                     );
 
                     // 距離と確率に基づいて伝播を調整 (波紋のように広がる、ドミノ倒し感を強化)
                     const currentSpreadRadius = baseSpreadRadius * (1 + (baseDelay / maxSpreadDelay) * 0.7); // 遅延に応じて広がる範囲を大きく
                     const probability = dist < currentSpreadRadius ? (1 - (dist / currentSpreadRadius)) : 0; // 距離が近いほど高確率
                     
-                    if (Math.random() < probability * 2) { // 確率をさらに上げて、確実に伝播させる
-                        const nextDelay = baseDelay + (dist * spreadFactor) + (Math.random() * 40); // 距離とわずかなランダム遅延
+                    if (Math.random() < probability * 2.5) { // 確率をさらに上げて、確実に伝播させる
+                        const nextDelay = baseDelay + (dist * spreadFactor) + (Math.random() * 30); // 距離とわずかなランダム遅延
                         if (nextDelay < maxSpreadDelay) {
                             animationQueue.push({ index: i, delay: nextDelay });
                             processedChars.add(i);
