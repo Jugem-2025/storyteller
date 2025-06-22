@@ -44,7 +44,7 @@
             left: 0;
             top: 0;
             opacity: 1;
-            transition: opacity 0.5s ease-out; /* フェードアウト用 */
+            /* transition: opacity 0.5s ease-out; /* Falling animation handles opacity */ */
             pointer-events: none; /* クリック不可に */
             user-select: none;
             color: black; /* 崩れる文字の色も黒に */
@@ -162,11 +162,11 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             for (let i = 0; i < initialText.length; i++) {
                 const char = initialText[i];
                 if (char === ' ' || char === '\n') {
-                    tempHTML += `<span class="char-wrapper" data-char="${char}">`;
+                    tempHTML += `<span class="char-wrapper" data-char="${char}" data-index="${i}">`;
                     tempHTML += (char === ' ') ? '&nbsp;' : '<br>';
                     tempHTML += '</span>';
                 } else {
-                    tempHTML += `<span class="char-wrapper" data-char="${char}">${char}</span>`;
+                    tempHTML += `<span class="char-wrapper" data-char="${char}" data-index="${i}">${char}</span>`;
                 }
             }
             initialTextContainer.innerHTML = tempHTML;
@@ -241,7 +241,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             totalFallingChars = charElements.length - remainingCharIndices.length;
             if (totalFallingChars < 0) totalFallingChars = 0;
 
-            let processedChars = new Set();
+            let processedChars = new Set(remainingCharIndices); // 残す文字は最初からprocessedとする
             let animationQueue = [];
 
             // 崩壊の起点となる文字（画面中央上部の1点から複数の文字がほぼ同時に落ち始め）
@@ -252,7 +252,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             const screenCenterYUpper = window.innerHeight / 4; // 画面上部1/4あたり
 
             for(let i = 0; i < charElements.length; i++) {
-                if (remainingCharIndices.includes(i)) continue; // 残す文字は除外
+                if (processedChars.has(i)) continue; // 既に処理済み（残す文字も含む）は除外
 
                 const charRect = charElements[i].getBoundingClientRect();
                 const charCenterX = charRect.left + charRect.width / 2;
@@ -277,8 +277,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 // 中心点から近い周囲の文字を初期崩壊の候補として追加
                 const initialSpreadRadius = 150; // 中心から同時に落ち始める範囲
                 for (let i = 0; i < charElements.length; i++) {
-                    if (i === centerCharIndex || processedChars.has(i)) continue;
-                    if (remainingCharIndices.includes(i)) continue;
+                    if (processedChars.has(i)) continue; // 既に処理済み（残す文字も含む）は除外
 
                     const charRect = charElements[i].getBoundingClientRect();
                     const centerCharRect = charElements[centerCharIndex].getBoundingClientRect();
@@ -294,14 +293,16 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 }
             }
             
+            // 落ちる文字が一つもない場合 (残す文字のみの場合など) は、アニメーションをスキップして次へ
             if (animationQueue.length === 0 && totalFallingChars === 0) {
                 startPileFadeOutAndStorytellerAnimation();
                 return;
             }
 
             let head = 0;
-            // 広がりを調整するためのパラメータ (全体6秒、浮遊感、波紋のような伝播)
-            const maxSpreadDelay = 5500; // 崩壊の伝播が完了するまでの時間 (全体6秒に収まるように微調整)
+            // 広がりを調整するためのパラメータ (表示から8秒〜10秒)
+            // 崩壊開始が3秒後なので、アニメーション自体は5秒〜7秒で完了させる
+            const maxSpreadDelay = 6500; // 崩壊の伝播が完了するまでの時間 (6.5秒に設定すると、全体で3+6.5=9.5秒となり8〜10秒に収まる)
             const baseSpreadRadius = 100; // 広がりの初期半径を少し大きくして、波紋のように広がりやすく
             const spreadFactor = 0.15; // 伝播の遅延の計算に使う係数をさらに小さくして、伝播を速くし連鎖を強調
 
@@ -309,8 +310,11 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 const { index: currentIdx, delay: baseDelay } = animationQueue[head++];
                 
                 const charElement = charElements[currentIdx];
+                // ここでは processedChars.has(currentIdx) のチェックは不要。
+                // キューに入れる時点でprocessedCharsに追加されているため。
+                // ただし、念のため remainingCharIndices に含まれないことを確認しておく。
                 if (remainingCharIndices.includes(currentIdx)) {
-                    charElement.style.color = 'black';
+                    // このブロックは通常実行されないはずだが、残す文字が誤ってキューに入った場合の安全策
                     continue; 
                 }
 
@@ -334,7 +338,8 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 `;
                 document.body.appendChild(fallingCharDiv);
 
-                charElement.style.opacity = 0;
+                // 崩れる文字の元のchar-wrapper要素のみ非表示にする
+                charElement.style.opacity = 0; 
 
                 // 浮遊感、ゆっくり落ちる、ランダムな回転と左右の揺れ
                 const fallDuration = Math.random() * 1.5 + 2.5; // 2.5秒から4秒で落ちる (長くして浮遊感)
@@ -370,8 +375,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
                 // 周囲の文字をキューに追加（崩壊の伝播）
                 for (let i = 0; i < charElements.length; i++) {
-                    if (i === currentIdx || processedChars.has(i)) continue;
-                    if (remainingCharIndices.includes(i)) continue;
+                    if (processedChars.has(i)) continue; // 既に処理済み（残す文字も含む）は除外
 
                     const charRect = charElements[i].getBoundingClientRect();
                     const currentElementRect = charElement.getBoundingClientRect(); // 伝播元となる文字のRect
@@ -393,7 +397,6 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                     }
                 }
             }
-            initialTextContainer.style.opacity = 0; // 全体が消えるように
         }
 
         function startPileFadeOutAndStorytellerAnimation() {
