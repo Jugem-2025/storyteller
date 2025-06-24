@@ -52,7 +52,6 @@
             }
             100% {
                 opacity: 0; /* 崩れ落ちる途中で消えるように */
-                /* 画面下部へ大きく移動させることで「積もる」前の状態を表現 */
                 transform: translateY(150vh) rotate(var(--rotate-deg, 360deg)) translateX(var(--shake-x, 0px));
             }
         }
@@ -76,26 +75,24 @@
             align-items: center;
             z-index: 100;
             white-space: nowrap; /* 文字列が改行しないように */
+            opacity: 0; /* 最初は非表示 */
+            transition: opacity 0.1s ease-in; /* 表示時のフェードイン用 */
         }
 
         /* 残った文字の移動と拡大 */
         .char.storyteller-final {
-            /* ⑤ 残る文字の色は黒のまま */
-            color: black;
+            color: black; /* ⑤ 残る文字の色は黒のまま */
             opacity: 1; /* 必ず表示 */
-            position: relative; /* flexアイテムとして機能させるため */
-            transform: translate(0, 0) scale(1); /* 初期状態（relativeからの相対移動） */
-            transition: all 2s ease-in-out; /* ⑧ ヌルっとした拡大と移動 */
+            position: fixed; /* 初期位置を固定するため */
+            transition: all 2s ease-in-out; /* ⑦ ⑧ ヌルっとした拡大と移動 */
             font-size: 3vw; /* 拡大前のサイズ */
             letter-spacing: normal; /* 拡大前の文字間隔 */
         }
 
         .char.storyteller-final.enlarged {
             font-size: 9vw; /* ⑧ 3倍の大きさ */
-            /* 拡大と同時に文字間隔を広げ、縦横比を調整 */
-            /* letter-spacingの調整はフォントや文字数に依存するため、この値は調整が必要です */
-            /* 例: 0.15em は一例。's' 't' 'o' 'r' 'y' 't' 'e' 'l' 'l' 'e' 'r' で試しながら調整 */
-            letter-spacing: 0.05em; /* 調整後の文字間隔 */
+            letter-spacing: 0.05em; /* 調整後の文字間隔（フォントや文字数で微調整してください） */
+            transform: translate(-50%, -50%); /* 中央配置 */
         }
     </style>
 </head>
@@ -148,8 +145,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ 初期表示�
                 charSpan.textContent = char;
                 charSpan.classList.add('char');
 
-                // 残す文字を特定し、クラスを追加
-                // 大文字小文字を区別せず、指定された順番で残す
+                // 残す文字を特定し、クラスを追加 (スペースは無視し、大文字小文字を区別しない)
                 if (char.trim() !== '' && currentKeptCharIndex < charsToKeep.length && char.toLowerCase() === charsToKeep[currentKeptCharIndex]) {
                     charSpan.classList.add('keep-char');
                     charSpan.dataset.charIndex = currentKeptCharIndex; // 何番目の残す文字か記録
@@ -181,13 +177,11 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ 初期表示�
                         const containerCenterY = textContainerRect.top + textContainerRect.height / 2;
 
                         const distance = Math.sqrt(Math.pow(charCenterX - containerCenterX, 2) + Math.pow(charCenterY - containerCenterY, 2));
-                        // 画面全体の対角線長を最大距離とする
                         const maxDistance = Math.sqrt(Math.pow(window.innerWidth, 2) + Math.pow(window.innerHeight, 2)) / 2;
                         const normalizedDistance = distance / maxDistance; // 0から1の範囲に正規化
 
                         // 落下開始のディレイを調整（全体で6秒の間に均等に広がるように）
-                        // 3秒から9秒（3秒開始 + 6秒落下）の間にアニメーション終了
-                        const fallStartDelay = normalizedDistance * 3; // 中央に近いほど早く落ち始める
+                        const fallStartDelay = normalizedDistance * 3; // 中央に近いほど早く落ち始める (0~3秒の範囲でディレイ)
 
                         char.style.animationDelay = `${fallStartDelay}s`; // アニメーション開始までのディレイ
                         char.classList.add('falling');
@@ -208,46 +202,39 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ 初期表示�
                     textContainer.style.transition = 'opacity 2s ease-out';
                     textContainer.style.opacity = '0';
 
-                    // ⑦ ⑥のフェードアウトの2秒間のあと、残った文字が移動
+                    // ⑦ ⑥のフェードアウトのあと、残った文字が移動
+                    // 計算: 3秒(初期表示後待機) + 6秒(落下アニメーション) + 2秒(フェードアウト) = 11秒後
                     setTimeout(() => {
-                        textContainer.style.display = 'none'; // 元のテキストコンテナを非表示にする
+                        textContainer.style.display = 'none'; // 元のテキストコンテナを完全に非表示にする
 
-                        // 残った文字を画面中央に配置する新しいコンテナを作成
+                        // 残った文字を正しい順序で並べ替える
+                        keptCharSpans.sort((a, b) => a.dataset.charIndex - b.dataset.charIndex);
+
                         const finalStorytellerContainer = document.createElement('div');
                         finalStorytellerContainer.id = 'final-storyteller-container';
                         document.body.appendChild(finalStorytellerContainer);
 
-                        // 残す文字を正しい順序で新しいコンテナに追加
-                        // dataset.charIndex を使って正しい順序で並べる
-                        keptCharSpans.sort((a, b) => a.dataset.charIndex - b.dataset.charIndex);
-
+                        // 各文字を元の位置から中央へ移動させるために初期位置を設定
                         keptCharSpans.forEach(span => {
-                            // 元の位置から中央へのスムーズな移動を実現するため、
-                            // JavaScriptで初期位置を保持し、CSSで最終位置に移行させる
                             const rect = span.getBoundingClientRect();
                             span.style.left = `${rect.left}px`;
                             span.style.top = `${rect.top}px`;
-                            span.style.position = 'fixed'; // 初期位置を固定
-
                             span.classList.remove('char'); // 既存のcharクラスを削除
                             span.classList.add('storyteller-final'); // 新しいクラスを追加
                             span.style.opacity = '1'; // 確実に表示
                             finalStorytellerContainer.appendChild(span);
                         });
 
-                        // 2秒かけて中央に並ぶアニメーションを開始
-                        // 短いディレイでCSSトランジションをトリガー
+                        // CSSトランジションをトリガーして移動と拡大を開始
+                        // 短いディレイを設けることで、初期位置設定が完了してからアニメーションが始まる
                         setTimeout(() => {
+                            finalStorytellerContainer.style.opacity = '1'; // コンテナを表示
                             keptCharSpans.forEach(span => {
-                                // CSSのtransitionで中央へ移動
-                                span.style.left = '50%';
-                                span.style.top = '50%';
-                                span.style.transform = 'translate(-50%, -50%)'; // 中央揃え
                                 span.classList.add('enlarged'); // ⑧ 拡大アニメーション開始
                             });
                         }, 50); // わずかなディレイ
-                    }, 9000 + 2000); // 3秒(表示から落下開始) + 6秒(落下時間) + 2秒(フェードアウト) = 11秒後に処理開始
-                }, 9000); // 3秒(表示から落下開始) + 6秒(落下時間) = 9秒後に積もる処理開始
+                    }, 3000 + 6000 + 2000); // 11秒後に処理開始
+                }, 3000 + 6000); // 9秒後に積もる処理開始 (落下完了後)
             }, 3000); // ③の文章が表示されてから3秒後
         });
     </script>
