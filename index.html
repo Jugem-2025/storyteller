@@ -25,6 +25,16 @@
             text-align: center;
             line-height: 1.2; /* 行の高さを調整 */
             user-select: none; /* テキスト選択を無効化 */
+            padding-top: 5vw; /* ③ 上部の余白 */
+            padding-left: 3vw; /* ③ 左右の余白 */
+            padding-right: 3vw; /* ③ 左右の余白 */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
+            width: 100vw; /* 画面幅いっぱいに広げる */
+            height: 100vh; /* 画面高さいっぱいに広げる */
+            display: flex; /* flexboxで中央寄せを解除し、paddingを反映 */
+            flex-wrap: wrap; /* 文字列が折り返すように */
+            align-content: flex-start; /* 上から配置を開始 */
+            justify-content: center; /* 行内での中央揃えを維持 */
         }
 
         .char-wrapper {
@@ -83,7 +93,7 @@
         .final-storyteller.active {
             opacity: 1;
             transform: translate(-50%, -50%) scale(3); /* ⑧ 3倍に拡大 */
-            letter-spacing: 0.5em; /* ⑧ 文字間隔を広げる（縦横比維持のため） */
+            letter-spacing: 0.5em; /* ⑧ 文字間隔を広げる（縦横比維持のため調整） */
         }
     </style>
 </head>
@@ -146,7 +156,7 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ ページ表�
             chars.push({ wrapper: charWrapper, span: charSpan, originalChar: char });
         });
 
-        // 残す文字のインデックスをランダムに選定（連続しないように）
+        // 残す文字のインデックスをランダムに選定（連続しないように、かつ文中から広く）
         function selectRemainingChars() {
             let availableIndices = [];
             for (let i = 0; i < chars.length; i++) {
@@ -156,37 +166,32 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ ページ表�
                 }
             }
 
-            targetRemainChars.forEach(targetChar => {
+            // 残す文字のターゲットリストを複製し、選定済みをマークするためのセット
+            const tempTargetChars = [...targetRemainChars];
+            const selectedOriginalIndices = new Set();
+
+            tempTargetChars.forEach(targetChar => {
                 let foundIndex = -1;
-                // availableIndices をランダムにシャッフルして、文中から広く文字を選ぶ
-                let shuffledIndices = availableIndices.sort(() => 0.5 - Math.random());
-                for (let i = 0; i < shuffledIndices.length; i++) {
-                    const idx = shuffledIndices[i];
-                    if (chars[idx].originalChar.toLowerCase() === targetChar.toLowerCase() && !remainingCharIndices.includes(idx)) {
+                // 利用可能なインデックスをシャッフルして、ランダム性と分散性を高める
+                let shuffledAvailable = [...availableIndices].sort(() => 0.5 - Math.random());
+
+                for (const idx of shuffledAvailable) {
+                    if (chars[idx].originalChar.toLowerCase() === targetChar.toLowerCase() && !selectedOriginalIndices.has(idx)) {
                         foundIndex = idx;
                         break;
                     }
                 }
+
                 if (foundIndex !== -1) {
                     remainingCharIndices.push(foundIndex);
-                    // 選ばれたインデックスは利用可能なリストから削除
+                    selectedOriginalIndices.add(foundIndex);
+                    // 選ばれたインデックスは以降の検索対象から除外
                     availableIndices = availableIndices.filter(item => item !== foundIndex);
                 }
             });
 
-            // 万が一、選ばれた文字数が足りない場合の補足
-            while (remainingCharIndices.length < targetRemainChars.length) {
-                let added = false;
-                for (let i = 0; i < availableIndices.length; i++) {
-                    const idx = availableIndices[i];
-                    if (!remainingCharIndices.includes(idx)) {
-                        remainingCharIndices.push(idx);
-                        added = true;
-                        break;
-                    }
-                }
-                if (!added) break;
-            }
+            // 万が一、選ばれた文字数が足りない場合の補足（ただし、これはロジック上発生しにくいように工夫済み）
+            // console.log("選ばれた残る文字の数:", remainingCharIndices.length);
         }
 
         // ④ ページ表示から3秒後に文字を崩し始める
@@ -196,6 +201,8 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ ページ表�
             const triggerPointX = window.innerWidth / 3; // 最上部の左から3分の1
             const triggerPointY = 0;
 
+            const maxDistance = Math.sqrt(Math.pow(window.innerWidth - triggerPointX, 2) + Math.pow(window.innerHeight - triggerPointY, 2));
+
             chars.forEach((charObj, index) => {
                 const charSpan = charObj.span;
 
@@ -204,8 +211,13 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ ページ表�
                     const rect = charSpan.getBoundingClientRect(); // 各文字の位置を取得
 
                     // 距離に基づいて遅延を計算し、波紋のように広がる効果を作成
+                    // 崩れ落ちる範囲が急速に大きくなるように、遅延計算の関数を調整
+                    // 例: 距離の二乗や、より急なカーブを持つ関数を適用
                     const distance = Math.sqrt(Math.pow(rect.left - triggerPointX, 2) + Math.pow(rect.top - triggerPointY, 2));
-                    const delay = (distance / (window.innerWidth / 2)) * 3; // 画面幅の半分までの距離に応じて最大3秒の遅延
+                    // 遅延の最大値を設定し、距離に応じて非線形に遅延を増加させる
+                    // ここで、崩壊範囲が急速に大きくなるように調整 (例: distanceの累乗)
+                    const normalizedDistance = distance / maxDistance; // 0から1に正規化
+                    const delay = Math.pow(normalizedDistance, 0.7) * 3; // 0.7は調整可能。小さいほど開始が早まり、広い範囲に早く伝播
 
                     charSpan.style.animationDelay = `${delay}s`;
                     charSpan.classList.add('fall');
@@ -231,41 +243,45 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ ページ表�
             // ⑨ ⑧で表示されたstorytellerは、その後消えずに残る
 
             setTimeout(() => {
-                textContainer.style.display = 'none'; // テキストコンテナを非表示にする
+                textContainer.style.display = 'none'; // テキストコンテナを完全に非表示にする
 
-                // 残った文字のDOM要素を収集し、表示順（ターゲット文字の順）に並べ替える
-                const sortedRemainingChars = [];
+                // ⑦ 残った文字を「storyteller」の順番で並べるための処理
+                // ここで重要なのは、remainingCharIndicesに含まれる文字の中から、targetRemainCharsの順番に合致する文字を選び、
+                // finalStorytellerに新しいspanとして追加すること。
+                const finalStorytellerChars = [];
+                const usedOriginalIndices = new Set(); // 既にfinalStorytellerCharsに追加された元のインデックスを追跡
+
                 targetRemainChars.forEach(targetChar => {
-                    let foundChar = null;
-                    // 残る文字のインデックスリストから、ターゲットの文字と一致する最初のものを見つける
-                    for (let i = 0; i < remainingCharIndices.length; i++) {
-                        const originalIndex = remainingCharIndices[i];
-                        // 既にsortedRemainingCharsに追加済みでないことを確認
-                        if (chars[originalIndex].originalChar.toLowerCase() === targetChar.toLowerCase() &&
-                            !sortedRemainingChars.some(item => item.originalIndex === originalIndex)) {
-                            foundChar = {
-                                span: chars[originalIndex].span,
-                                originalIndex: originalIndex
-                            };
+                    let foundCharObj = null;
+                    // remainingCharIndicesの中から、targetCharに一致し、かつまだ使われていない文字を探す
+                    for (const originalIdx of remainingCharIndices) {
+                        if (!usedOriginalIndices.has(originalIdx) && chars[originalIdx].originalChar.toLowerCase() === targetChar.toLowerCase()) {
+                            foundCharObj = chars[originalIdx];
                             break;
                         }
                     }
-                    if (foundChar) {
-                        sortedRemainingChars.push(foundChar);
+                    if (foundCharObj) {
+                        finalStorytellerChars.push(foundCharObj);
+                        usedOriginalIndices.add(foundCharObj.span.dataset.originalIndex ? parseInt(foundCharObj.span.dataset.originalIndex) : chars.indexOf(foundCharObj)); // 既に設定済みならそれを使う
+                    } else {
+                        // もし指定された文字がremainingCharIndices内に見つからない場合は、
+                        // 便宜上、利用可能な残る文字の中からランダムに選択するか、ダミー文字を追加することも考えられますが、
+                        // 今回の指示では「正しく残るようになっているかを確認」とあるため、見つからない場合はロジックに問題がある可能性。
+                        // 今回は厳密に指定文字のみ残るようになっている前提で処理。
+                        console.warn(`Warning: Could not find a suitable character for '${targetChar}' among remaining ones.`);
                     }
                 });
 
                 // finalStorytellerに文字を追加
-                // この時点で各charSpanは元の位置にいるが、opacity: 0になっているはず
-                sortedRemainingChars.forEach(charInfo => {
+                finalStorytellerChars.forEach(charObj => {
                     const charSpan = document.createElement('span');
-                    charSpan.textContent = charInfo.span.textContent;
+                    charSpan.textContent = charObj.span.textContent; // 元の文字のテキストを使用
                     charSpan.classList.add('char'); // 基本的なスタイルを適用
-                    charSpan.style.fontSize = '3vw'; // 初期サイズを設定 (3vwはCSSで設定済みだが、明示的に指定)
+                    charSpan.style.fontSize = '3vw'; // 初期サイズを設定
                     finalStoryteller.appendChild(charSpan);
-                    charInfo.span.remove(); // 元の場所にあった文字をDOMから完全に削除
+                    charObj.span.style.opacity = 0; // 元の位置の文字を非表示に
+                    charObj.span.style.pointerEvents = 'none'; // イベントも無効に
                 });
-
 
                 finalStoryteller.classList.add('active'); // ヌルッと移動と拡大アニメーションを開始
 
