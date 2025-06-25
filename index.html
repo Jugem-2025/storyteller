@@ -4,18 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dynamic Text Effect</title>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: #E81F27; /* 背景色 */
+            background-color: #E81F27; /* ① 背景の色 */
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
             overflow: hidden; /* 崩れた文字がはみ出さないように */
-            font-family: 'Oswald Medium', sans-serif; /* フォント */
-            color: black; /* 文字色 */
+            font-family: 'Oswald', sans-serif; /* ② フォント: Oswald Medium */
+            font-weight: 500; /* Oswald Mediumに対応する重み */
+            color: black; /* ② 文字の色: 黒 */
             perspective: 1000px; /* 3D効果のため */
         }
 
@@ -23,17 +24,18 @@
             position: relative;
             text-align: center;
             line-height: 1.2; /* 行の高さを調整 */
+            user-select: none; /* テキスト選択を無効化 */
         }
 
         .char-wrapper {
             display: inline-block;
             position: relative;
-            white-space: pre; /* 半角スペースを保持 */
+            white-space: pre; /* 半角スペースや改行を保持 */
         }
 
         .char {
             display: inline-block;
-            font-size: 3vw; /* 文字サイズ */
+            font-size: 3vw; /* ② 文字サイズ: 3vw */
             opacity: 1;
             transform: translateZ(0); /* ハードウェアアクセラレーションを有効に */
             transition: transform 0.5s ease-out, opacity 0.5s ease-out, top 0.5s ease-out, left 0.5s ease-out; /* 残る文字の移動用 */
@@ -42,7 +44,7 @@
 
         /* 崩れる文字のアニメーション */
         .char.fall {
-            animation: fallAnimation 6s forwards; /* 6秒かけて崩れ落ちる */
+            animation: fallAnimation 6s forwards; /* ④ 6秒かけて崩れ落ちる */
             animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* 浮遊感のあるイージング */
         }
 
@@ -59,7 +61,8 @@
 
         /* 残る文字のスタイル */
         .char.remain {
-            opacity: 1;
+            opacity: 1; /* 残る文字は透明にしない */
+            color: black; /* 残る文字の色は黒を維持 */
         }
 
         /* 残った文字の最終的なスタイル（storyteller） */
@@ -73,14 +76,14 @@
             justify-content: center;
             align-items: center;
             opacity: 0; /* 最初は非表示 */
-            transition: all 2s ease-in-out; /* ヌルッとした移動と拡大 */
+            transition: all 2s ease-in-out; /* ⑦, ⑧ ヌルッとした移動と拡大、2秒間 */
             z-index: 10;
         }
 
         .final-storyteller.active {
             opacity: 1;
-            transform: translate(-50%, -50%) scale(3); /* 3倍に拡大 */
-            letter-spacing: 0.5em; /* 文字間隔を広げる */
+            transform: translate(-50%, -50%) scale(3); /* ⑧ 3倍に拡大 */
+            letter-spacing: 0.5em; /* ⑧ 文字間隔を広げる（縦横比維持のため） */
         }
     </style>
 </head>
@@ -121,12 +124,12 @@ COMMUNITY MEMBER / ENGLISH TEACHER BARBER
 GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
 ENGLISH TEACHER MATCHMAKER HOMELESS
 HOMELESS STREET SINGER / STORYTELLER MONK
-STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ ページ表示時の文章
 
         const textContainer = document.getElementById('textContainer');
         const finalStoryteller = document.getElementById('finalStoryteller');
         const chars = [];
-        const targetRemainChars = ['s', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r'];
+        const targetRemainChars = ['s', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r']; // ⑤ 残る文字
         const remainingCharIndices = [];
 
         // テキストを分解し、span要素としてDOMに追加
@@ -143,18 +146,19 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
             chars.push({ wrapper: charWrapper, span: charSpan, originalChar: char });
         });
 
-        // 残す文字のインデックスをランダムに選定
+        // 残す文字のインデックスをランダムに選定（連続しないように）
         function selectRemainingChars() {
             let availableIndices = [];
             for (let i = 0; i < chars.length; i++) {
-                availableIndices.push(i);
+                // スペースや改行は残す文字の対象外とする
+                if (chars[i].originalChar.trim() !== '') {
+                    availableIndices.push(i);
+                }
             }
 
-            // 'storyteller'の各文字について、元のテキストから適切なインデックスを探す
             targetRemainChars.forEach(targetChar => {
                 let foundIndex = -1;
-                // 利用可能なインデックスの中からランダムに選び、かつターゲット文字と一致するものを探す
-                // 文中から広く文字を選ぶため、ランダム性を加える
+                // availableIndices をランダムにシャッフルして、文中から広く文字を選ぶ
                 let shuffledIndices = availableIndices.sort(() => 0.5 - Math.random());
                 for (let i = 0; i < shuffledIndices.length; i++) {
                     const idx = shuffledIndices[i];
@@ -170,9 +174,8 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 }
             });
 
-            // 念のため、選ばれた文字が指定された文字数になっているか確認
+            // 万が一、選ばれた文字数が足りない場合の補足
             while (remainingCharIndices.length < targetRemainChars.length) {
-                // 足りない場合は、まだ選ばれていない文字の中からランダムに追加
                 let added = false;
                 for (let i = 0; i < availableIndices.length; i++) {
                     const idx = availableIndices[i];
@@ -182,15 +185,11 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                         break;
                     }
                 }
-                if (!added) break; // 全ての文字を選んだらループを抜ける
+                if (!added) break;
             }
-
-            // 最終的に選ばれた文字を、targetRemainCharsの順序でソート（DOMでの表示順とは異なる）
-            // これは残す文字のインデックスを決定するだけで、実際の表示順には影響しない
-            // 実際の表示順は最後の集約アニメーションで制御
         }
 
-        // ページ表示から3秒後に文字を崩し始める
+        // ④ ページ表示から3秒後に文字を崩し始める
         setTimeout(() => {
             selectRemainingChars(); // 残す文字のインデックスを決定
 
@@ -199,29 +198,38 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
             chars.forEach((charObj, index) => {
                 const charSpan = charObj.span;
-                const rect = charSpan.getBoundingClientRect(); // 各文字の位置を取得
 
-                if (!remainingCharIndices.includes(index)) {
-                    // 崩れる文字
+                // 残す文字に含まれていない、かつスペースや改行でない文字のみ崩壊アニメーションの対象とする
+                if (!remainingCharIndices.includes(index) && charObj.originalChar.trim() !== '') {
+                    const rect = charSpan.getBoundingClientRect(); // 各文字の位置を取得
+
                     // 距離に基づいて遅延を計算し、波紋のように広がる効果を作成
                     const distance = Math.sqrt(Math.pow(rect.left - triggerPointX, 2) + Math.pow(rect.top - triggerPointY, 2));
                     const delay = (distance / (window.innerWidth / 2)) * 3; // 画面幅の半分までの距離に応じて最大3秒の遅延
 
                     charSpan.style.animationDelay = `${delay}s`;
                     charSpan.classList.add('fall');
-                } else {
-                    // 残る文字
+                } else if (remainingCharIndices.includes(index)) {
+                    // ⑤ 残る文字は透明などには変更せず、そのままの色(黒)を維持する
                     charSpan.classList.add('remain');
                 }
             });
 
+            // ④ 文字が落ち始めるのが表示から3秒後、文字が落ちる時間は表示から8秒〜10秒 (全体で6秒のアニメーション)
             // 全体が6秒かけて崩れ落ちるアニメーションが終了した後、フェードアウトを開始
             setTimeout(() => {
+                // ⑥ 崩れ落ちた文字は表示された画面の下部に積もるようにする。（opacity: 0; と animation-fill-mode: forwards; で実現）
+                // ⑥ 崩れ落ちた文字が全て積もったら、2秒かけてフェードアウトする。
                 textContainer.style.transition = 'opacity 2s ease-out';
                 textContainer.style.opacity = 0; // 全体がフェードアウト
             }, 3000 + 6000); // 表示から3秒 + 崩壊に6秒 = 9秒後にフェードアウト開始
 
-            // フェードアウトが完了した後、残った文字を集約
+            // ⑥のフェードアウトのあと、⑦で指定した崩れ落ちなかった文字(残った文字「s, t, o, r, y, t, e, l, l, e, r」)が位置を変える。
+            // ⑦ それらの文字が2秒かけてヌルッと移動しはじめ、画面中央に向かう。向かいながら「storyteller」の順番で画面中央に並ぶ。
+            // ⑧ その2秒間の間、その文字列「storyteller」の文字サイズを徐々に拡大し、もとの3倍の大きさにする。拡大はヌルッとした挙動になるようにする。
+            // ⑧ また拡大中に文字と文字の間を広げ、整列した文字列の文字間隔を含む全体の縦横比が、整列する前の文字列の全体の縦横比と変わらないようにする。
+            // ⑨ ⑧で表示されたstorytellerは、その後消えずに残る
+
             setTimeout(() => {
                 textContainer.style.display = 'none'; // テキストコンテナを非表示にする
 
@@ -229,12 +237,15 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 const sortedRemainingChars = [];
                 targetRemainChars.forEach(targetChar => {
                     let foundChar = null;
-                    for(let i = 0; i < remainingCharIndices.length; i++) {
+                    // 残る文字のインデックスリストから、ターゲットの文字と一致する最初のものを見つける
+                    for (let i = 0; i < remainingCharIndices.length; i++) {
                         const originalIndex = remainingCharIndices[i];
-                        if (chars[originalIndex].originalChar.toLowerCase() === targetChar.toLowerCase() && !sortedRemainingChars.some(item => item.originalIndex === originalIndex)) {
+                        // 既にsortedRemainingCharsに追加済みでないことを確認
+                        if (chars[originalIndex].originalChar.toLowerCase() === targetChar.toLowerCase() &&
+                            !sortedRemainingChars.some(item => item.originalIndex === originalIndex)) {
                             foundChar = {
                                 span: chars[originalIndex].span,
-                                originalIndex: originalIndex // 元のインデックスも保持
+                                originalIndex: originalIndex
                             };
                             break;
                         }
@@ -245,13 +256,14 @@ STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
                 });
 
                 // finalStorytellerに文字を追加
+                // この時点で各charSpanは元の位置にいるが、opacity: 0になっているはず
                 sortedRemainingChars.forEach(charInfo => {
                     const charSpan = document.createElement('span');
                     charSpan.textContent = charInfo.span.textContent;
                     charSpan.classList.add('char'); // 基本的なスタイルを適用
-                    charSpan.style.fontSize = '3vw'; // 初期サイズを設定
-                    charInfo.span.style.opacity = 0; // 元の位置の文字を非表示にする
+                    charSpan.style.fontSize = '3vw'; // 初期サイズを設定 (3vwはCSSで設定済みだが、明示的に指定)
                     finalStoryteller.appendChild(charSpan);
+                    charInfo.span.remove(); // 元の場所にあった文字をDOMから完全に削除
                 });
 
 
