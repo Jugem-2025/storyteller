@@ -3,105 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Text Animation</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500&display=swap" rel="stylesheet">
+    <title>Dynamic Text Effect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #E81F27; /* ① 背景の色 */
-            font-family: 'Oswald', sans-serif; /* ② フォント */
-            color: black; /* ② 文字の色 */
+            background-color: #E81F27; /* 背景色 */
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            position: relative;
+            margin: 0;
+            overflow: hidden; /* 崩れた文字がはみ出さないように */
+            font-family: 'Oswald Medium', sans-serif; /* フォント */
+            color: black; /* 文字色 */
+            perspective: 1000px; /* 3D効果のため */
         }
 
-        #text-container {
-            text-align: center;
-            line-height: 1.2;
-            word-break: break-all; /* 単語の途中で改行を許可 */
-            font-size: 3vw; /* ② 文字のサイズ */
+        .text-container {
             position: relative;
-            padding: 2vw; /* 文字が端に寄りすぎないようにパディング */
+            text-align: center;
+            line-height: 1.2; /* 行の高さを調整 */
+        }
+
+        .char-wrapper {
+            display: inline-block;
+            position: relative;
+            white-space: pre; /* 半角スペースを保持 */
         }
 
         .char {
             display: inline-block;
-            position: relative;
+            font-size: 3vw; /* 文字サイズ */
             opacity: 1;
-            transform: translateY(0) rotate(0deg) translateX(0); /* 初期状態 */
-            transition: opacity 0.5s, transform 0.5s; /* フェードアウト時に使用 */
-            will-change: transform, opacity; /* アニメーションのパフォーマンス最適化 */
+            transform: translateZ(0); /* ハードウェアアクセラレーションを有効に */
+            transition: transform 0.5s ease-out, opacity 0.5s ease-out, top 0.5s ease-out, left 0.5s ease-out; /* 残る文字の移動用 */
+            will-change: transform, opacity, top, left; /* アニメーションのパフォーマンス改善 */
         }
 
-        .char.falling {
-            animation: fall 6s forwards; /* ④ 6秒かけて崩れ落ちる */
-            animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); /* ヌルっとした落下 */
+        /* 崩れる文字のアニメーション */
+        .char.fall {
+            animation: fallAnimation 6s forwards; /* 6秒かけて崩れ落ちる */
+            animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* 浮遊感のあるイージング */
         }
 
-        /* 落下アニメーション（下方向、回転、左右の揺れを表現） */
-        @keyframes fall {
+        @keyframes fallAnimation {
             0% {
+                transform: translateY(0) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
                 opacity: 1;
-                transform: translateY(0) rotate(0deg) translateX(0);
             }
             100% {
-                opacity: 0; /* 崩れ落ちる途中で消えるように */
-                transform: translateY(150vh) rotate(var(--rotate-deg, 360deg)) translateX(var(--shake-x, 0px));
+                transform: translateY(100vh) rotateX(720deg) rotateY(720deg) rotateZ(720deg); /* 下方向に落ちて回転 */
+                opacity: 0; /* 画面下部に積もるように見せるため透明に */
             }
         }
 
-        /* 文字の積もりアニメーション後の状態（透明で画面下部に移動） */
-        .char.stacked {
-            opacity: 0;
-            transform: translateY(100vh); /* 画面外へ */
+        /* 残る文字のスタイル */
+        .char.remain {
+            opacity: 1;
         }
 
-        /* 残った文字の最終的なコンテナ */
-        #final-storyteller-container {
-            position: fixed; /* 固定位置で中央配置 */
+        /* 残った文字の最終的なスタイル（storyteller） */
+        .final-storyteller {
+            position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%); /* 自身を中央に */
-            display: flex; /* flexboxで中央揃え */
+            transform: translate(-50%, -50%) scale(1);
+            white-space: nowrap;
+            display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 100;
-            white-space: nowrap; /* 文字列が改行しないように */
             opacity: 0; /* 最初は非表示 */
-            transition: opacity 0.1s ease-in; /* 表示時のフェードイン用 */
+            transition: all 2s ease-in-out; /* ヌルッとした移動と拡大 */
+            z-index: 10;
         }
 
-        /* 残った文字の移動と拡大 */
-        .char.storyteller-final {
-            color: black; /* ⑤ 残る文字の色は黒のまま */
-            opacity: 1; /* 必ず表示 */
-            position: fixed; /* 初期位置を固定するため */
-            transition: all 2s ease-in-out; /* ⑦ ⑧ ヌルっとした拡大と移動 */
-            font-size: 3vw; /* 拡大前のサイズ */
-            letter-spacing: normal; /* 拡大前の文字間隔 */
-            display: inline-block; /* 各文字をインラインブロックにする */
-            /* 初期位置はJavaScriptで設定される */
-        }
-
-        .char.storyteller-final.enlarged {
-            font-size: 9vw; /* ⑧ 3倍の大きさ */
-            letter-spacing: 0.05em; /* 調整後の文字間隔（フォントや文字数で微調整が必要です） */
-            /* transformはJavaScriptで設定されるためここでは指定しない */
+        .final-storyteller.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(3); /* 3倍に拡大 */
+            letter-spacing: 0.5em; /* 文字間隔を広げる */
         }
     </style>
 </head>
 <body>
-    <div id="text-container"></div>
+    <div class="text-container" id="textContainer"></div>
+    <div class="final-storyteller" id="finalStoryteller"></div>
+
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const textContainer = document.getElementById('text-container');
-            const fullText = `FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
+        const originalText = `FENG SHUI MASTER / BARBER BORDER HOPPER / MATCHMAKER / NEW YORKER AUXILIARY POLICE TAILOR / DRONE PILOT TEA HOUSE OWNER STREET ARTIST / MONK NEW YORKER / TAILOR / SOCIAL WORKER CHEESE ARTISAN / FORTUNE TELLER / PRIEST MONK STORYTELLER / KUNG FU MASTER / HOMELESS MATCHMAKER / PRESCHOOL TEACHER
 GRAFFITI ARTIST FENG SHUI MASTER
 PRIEST / JUDGE ENGLISH TEACHER / BORDER HOPPER NEW YORKER COMMUNITY LEADER / SOCIAL WORKER NOVELIST NEW YORKER CHINESE MEDICINE DOCTOR / CHEESE ARTISAN STREET ARTIST JOURNALIST / AUXILIARY POLICE PROFESSOR
 DRONE PILOT NEW YORKER / FENG SHUI MASTER STORYTELLER
@@ -133,148 +121,145 @@ COMMUNITY MEMBER / ENGLISH TEACHER BARBER
 GRAFFITI ARTIST / PROFESSOR SOCIAL WORKER TAILOR
 ENGLISH TEACHER MATCHMAKER HOMELESS
 HOMELESS STREET SINGER / STORYTELLER MONK
-STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`; // ③ 初期表示文章
+STREET ARTIST CHINESE MEDICINE DOCTOR / BARBER PROFESSOR`;
 
-            const charsToKeep = ['s', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r']; // ⑤ 残す文字
-            let keptCharSpans = new Array(charsToKeep.length).fill(null); // 指定された順序でspanを格納
-            let currentKeptCharIndex = 0;
+        const textContainer = document.getElementById('textContainer');
+        const finalStoryteller = document.getElementById('finalStoryteller');
+        const chars = [];
+        const targetRemainChars = ['s', 't', 'o', 'r', 'y', 't', 'e', 'l', 'l', 'e', 'r'];
+        const remainingCharIndices = [];
 
-            const allPossibleKeepChars = []; // 文章中の全てのs,t,o...候補を保持
-            let charSpans = []; // 全てのchar spanを順序通りに保持
+        // テキストを分解し、span要素としてDOMに追加
+        originalText.split('').forEach((char, index) => {
+            const charWrapper = document.createElement('span');
+            charWrapper.classList.add('char-wrapper');
 
-            // 各文字をspanでラップし、候補を収集
-            fullText.split('').forEach((char, index) => {
-                const charSpan = document.createElement('span');
-                charSpan.textContent = char;
-                charSpan.classList.add('char');
-                charSpan.dataset.originalIndex = index; // 元のインデックスを保存
+            const charSpan = document.createElement('span');
+            charSpan.classList.add('char');
+            charSpan.textContent = char;
 
-                charSpans.push(charSpan);
-                textContainer.appendChild(charSpan);
+            charWrapper.appendChild(charSpan);
+            textContainer.appendChild(charWrapper);
+            chars.push({ wrapper: charWrapper, span: charSpan, originalChar: char });
+        });
 
-                // 残す文字の候補として、対応する文字とインデックスを保存
-                if (char.trim() !== '' && currentKeptCharIndex < charsToKeep.length && char.toLowerCase() === charsToKeep[currentKeptCharIndex]) {
-                    allPossibleKeepChars.push({ span: charSpan, originalIndex: index, targetCharIndex: currentKeptCharIndex });
+        // 残す文字のインデックスをランダムに選定
+        function selectRemainingChars() {
+            let availableIndices = [];
+            for (let i = 0; i < chars.length; i++) {
+                availableIndices.push(i);
+            }
+
+            // 'storyteller'の各文字について、元のテキストから適切なインデックスを探す
+            targetRemainChars.forEach(targetChar => {
+                let foundIndex = -1;
+                // 利用可能なインデックスの中からランダムに選び、かつターゲット文字と一致するものを探す
+                // 文中から広く文字を選ぶため、ランダム性を加える
+                let shuffledIndices = availableIndices.sort(() => 0.5 - Math.random());
+                for (let i = 0; i < shuffledIndices.length; i++) {
+                    const idx = shuffledIndices[i];
+                    if (chars[idx].originalChar.toLowerCase() === targetChar.toLowerCase() && !remainingCharIndices.includes(idx)) {
+                        foundIndex = idx;
+                        break;
+                    }
+                }
+                if (foundIndex !== -1) {
+                    remainingCharIndices.push(foundIndex);
+                    // 選ばれたインデックスは利用可能なリストから削除
+                    availableIndices = availableIndices.filter(item => item !== foundIndex);
                 }
             });
 
-            // ⑤ 残す文字をバラけた場所から選択するロジック
-            // 全ての文字のインデックスからランダムに、かつ均等に選ぶ
-            // 簡単のため、今回は元のテキストから指定順に抽出するが、バラけ具合を考慮
-            // ここでは簡易的に、テキストの長さで分割して各範囲から一つずつ選ぶことを試みます
-            const textLength = fullText.length;
-            const segmentSize = Math.floor(textLength / charsToKeep.length);
-            
-            currentKeptCharIndex = 0; // リセット
-            for (let i = 0; i < charsToKeep.length; i++) {
-                const targetChar = charsToKeep[i];
-                let found = false;
-                // 適切な範囲で探す (ただし、見つからない場合は全体から探すフォールバックも考慮)
-                for (let j = 0; j < charSpans.length; j++) {
-                    const charSpan = charSpans[j];
-                    // すでに残す文字として選ばれていないこと
-                    // 正しい文字であること
-                    // そしてまだ保持リストに入っていないこと
-                    if (!charSpan.classList.contains('keep-char') && charSpan.textContent.toLowerCase() === targetChar) {
-                        charSpan.classList.add('keep-char');
-                        charSpan.dataset.charIndex = i; // 何番目の残す文字か記録
-                        keptCharSpans[i] = charSpan; // 指定された順序で格納
-                        found = true;
-                        break; // 次の文字へ
+            // 念のため、選ばれた文字が指定された文字数になっているか確認
+            while (remainingCharIndices.length < targetRemainChars.length) {
+                // 足りない場合は、まだ選ばれていない文字の中からランダムに追加
+                let added = false;
+                for (let i = 0; i < availableIndices.length; i++) {
+                    const idx = availableIndices[i];
+                    if (!remainingCharIndices.includes(idx)) {
+                        remainingCharIndices.push(idx);
+                        added = true;
+                        break;
                     }
                 }
+                if (!added) break; // 全ての文字を選んだらループを抜ける
             }
 
+            // 最終的に選ばれた文字を、targetRemainCharsの順序でソート（DOMでの表示順とは異なる）
+            // これは残す文字のインデックスを決定するだけで、実際の表示順には影響しない
+            // 実際の表示順は最後の集約アニメーションで制御
+        }
 
-            const allDisplayChars = document.querySelectorAll('.char'); // 全ての文字span
+        // ページ表示から3秒後に文字を崩し始める
+        setTimeout(() => {
+            selectRemainingChars(); // 残す文字のインデックスを決定
 
-            // ④ 3秒後に文字が崩れ落ち始める
+            const triggerPointX = window.innerWidth / 3; // 最上部の左から3分の1
+            const triggerPointY = 0;
+
+            chars.forEach((charObj, index) => {
+                const charSpan = charObj.span;
+                const rect = charSpan.getBoundingClientRect(); // 各文字の位置を取得
+
+                if (!remainingCharIndices.includes(index)) {
+                    // 崩れる文字
+                    // 距離に基づいて遅延を計算し、波紋のように広がる効果を作成
+                    const distance = Math.sqrt(Math.pow(rect.left - triggerPointX, 2) + Math.pow(rect.top - triggerPointY, 2));
+                    const delay = (distance / (window.innerWidth / 2)) * 3; // 画面幅の半分までの距離に応じて最大3秒の遅延
+
+                    charSpan.style.animationDelay = `${delay}s`;
+                    charSpan.classList.add('fall');
+                } else {
+                    // 残る文字
+                    charSpan.classList.add('remain');
+                }
+            });
+
+            // 全体が6秒かけて崩れ落ちるアニメーションが終了した後、フェードアウトを開始
             setTimeout(() => {
-                allDisplayChars.forEach((char) => {
-                    if (!char.classList.contains('keep-char')) {
-                        // ランダムな回転と左右の揺れを設定
-                        const randomRotate = Math.random() * 720 - 360; // -360degから360deg
-                        const randomShakeX = Math.random() * 60 - 30; // -30pxから30px
+                textContainer.style.transition = 'opacity 2s ease-out';
+                textContainer.style.opacity = 0; // 全体がフェードアウト
+            }, 3000 + 6000); // 表示から3秒 + 崩壊に6秒 = 9秒後にフェードアウト開始
 
-                        char.style.setProperty('--rotate-deg', `${randomRotate}deg`);
-                        char.style.setProperty('--shake-x', `${randomShakeX}px`);
+            // フェードアウトが完了した後、残った文字を集約
+            setTimeout(() => {
+                textContainer.style.display = 'none'; // テキストコンテナを非表示にする
 
-                        // 波紋のように広がる表現のため、中央からの距離に応じて落下開始を遅延
-                        const textContainerRect = textContainer.getBoundingClientRect();
-                        const charRect = char.getBoundingClientRect();
-                        const charCenterX = charRect.left + charRect.width / 2;
-                        const charCenterY = charRect.top + charRect.height / 2;
-                        const containerCenterX = textContainerRect.left + textContainerRect.width / 2;
-                        const containerCenterY = textContainerRect.top + textContainerRect.height / 2;
-
-                        const distance = Math.sqrt(Math.pow(charCenterX - containerCenterX, 2) + Math.pow(charCenterY - containerCenterY, 2));
-                        const maxDistance = Math.sqrt(Math.pow(window.innerWidth, 2) + Math.pow(window.innerHeight, 2)) / 2;
-                        const normalizedDistance = distance / maxDistance; // 0から1の範囲に正規化
-
-                        // 落下開始のディレイを調整（全体で6秒の間に均等に広がるように）
-                        const fallStartDelay = normalizedDistance * 3; // 中央に近いほど早く落ち始める (0~3秒の範囲でディレイ)
-
-                        char.style.animationDelay = `${fallStartDelay}s`; // アニメーション開始までのディレイ
-                        char.classList.add('falling');
+                // 残った文字のDOM要素を収集し、表示順（ターゲット文字の順）に並べ替える
+                const sortedRemainingChars = [];
+                targetRemainChars.forEach(targetChar => {
+                    let foundChar = null;
+                    for(let i = 0; i < remainingCharIndices.length; i++) {
+                        const originalIndex = remainingCharIndices[i];
+                        if (chars[originalIndex].originalChar.toLowerCase() === targetChar.toLowerCase() && !sortedRemainingChars.some(item => item.originalIndex === originalIndex)) {
+                            foundChar = {
+                                span: chars[originalIndex].span,
+                                originalIndex: originalIndex // 元のインデックスも保持
+                            };
+                            break;
+                        }
+                    }
+                    if (foundChar) {
+                        sortedRemainingChars.push(foundChar);
                     }
                 });
 
-                // ⑥ 崩れ落ちた文字が積もり、2秒かけてフェードアウト
-                // アニメーションが完了する時間を考慮 (表示から3秒後開始 + 6秒落下 = 9秒)
-                setTimeout(() => {
-                    allDisplayChars.forEach(char => {
-                        if (!char.classList.contains('keep-char')) {
-                            char.classList.remove('falling');
-                            char.classList.add('stacked'); // 積もった状態（透明で下部に移動）
-                        }
-                    });
+                // finalStorytellerに文字を追加
+                sortedRemainingChars.forEach(charInfo => {
+                    const charSpan = document.createElement('span');
+                    charSpan.textContent = charInfo.span.textContent;
+                    charSpan.classList.add('char'); // 基本的なスタイルを適用
+                    charSpan.style.fontSize = '3vw'; // 初期サイズを設定
+                    charInfo.span.style.opacity = 0; // 元の位置の文字を非表示にする
+                    finalStoryteller.appendChild(charSpan);
+                });
 
-                    // 2秒かけてフェードアウト
-                    textContainer.style.transition = 'opacity 2s ease-out';
-                    textContainer.style.opacity = '0';
 
-                    // ⑦ ⑥のフェードアウトのあと、残った文字が移動
-                    // 計算: 3秒(初期表示後待機) + 6秒(落下アニメーション) + 2秒(フェードアウト) = 11秒後
-                    setTimeout(() => {
-                        textContainer.style.display = 'none'; // 元のテキストコンテナを完全に非表示にする
+                finalStoryteller.classList.add('active'); // ヌルッと移動と拡大アニメーションを開始
 
-                        const finalStorytellerContainer = document.createElement('div');
-                        finalStorytellerContainer.id = 'final-storyteller-container';
-                        document.body.appendChild(finalStorytellerContainer);
+            }, 3000 + 6000 + 2000); // 崩壊開始3秒 + 崩壊6秒 + フェードアウト2秒 = 11秒後に集約開始
 
-                        // 各文字を元の位置から中央へ移動させるために初期位置を設定
-                        keptCharSpans.forEach(span => {
-                            // spanがnullでないことを確認 (もしcharsToKeepのすべての文字が見つからなかった場合のため)
-                            if (span) {
-                                const rect = span.getBoundingClientRect();
-                                span.style.left = `${rect.left}px`;
-                                span.style.top = `${rect.top}px`;
-                                span.classList.remove('char'); // 既存のcharクラスを削除
-                                span.classList.add('storyteller-final'); // 新しいクラスを追加
-                                span.style.opacity = '1'; // 確実に表示
-                                finalStorytellerContainer.appendChild(span);
-                            }
-                        });
-
-                        // CSSトランジションをトリガーして移動と拡大を開始
-                        // 短いディレイを設けることで、初期位置設定が完了してからアニメーションが始まる
-                        setTimeout(() => {
-                            finalStorytellerContainer.style.opacity = '1'; // コンテナを表示
-                            keptCharSpans.forEach((span, i) => {
-                                if (span) {
-                                    // 各文字がfinal-storyteller-container内で正しい順序で並ぶように
-                                    // transformプロパティを調整（CSSでflexboxが適用されるため、個別のtranslateは不要になる）
-                                    // ただし、拡大アニメーションは引き続き適用
-                                    span.classList.add('enlarged'); // ⑧ 拡大アニメーション開始
-                                    // flexboxで整列されるため、個別のtranslateXは不要
-                                    // 縦横比維持のため、letter-spacingもenlargedクラスで調整
-                                }
-                            });
-                        }, 50); // わずかなディレイ
-                    }, 3000 + 6000 + 2000); // 11秒後に処理開始
-                }, 3000 + 6000); // 9秒後に積もる処理開始 (落下完了後)
-            }, 3000); // ③の文章が表示されてから3秒後
-        });
+        }, 3000); // ページ表示から3秒後に実行
     </script>
 </body>
 </html>
